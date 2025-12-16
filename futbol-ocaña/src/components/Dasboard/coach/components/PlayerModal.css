@@ -715,3 +715,147 @@
 .modal-backdrop {
     z-index: 10000;
 }
+
+/* src/components/coach/components/PlayerModal.css - Secciones agregadas */
+
+/* Estilos para la edición de foto */
+.player-photo-edit {
+    width: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.player-current-photo-note {
+    font-size: 11px;
+    color: #666;
+    text-align: center;
+    margin-top: 5px;
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+/* Estilos para documentos en modo edición */
+.player-documents-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.player-document-upload {
+    margin-bottom: 10px;
+}
+
+.player-documents-note {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 10px;
+}
+
+.player-documents-note p {
+    margin: 0 0 5px 0;
+    font-size: 13px;
+    color: #856404;
+}
+
+.player-documents-note p:last-child {
+    margin-bottom: 0;
+}
+
+/* Estilos específicos para FileUpload en PlayerModal */
+.player-modal-container .file-upload-container {
+    margin: 0;
+}
+
+.player-modal-container .file-upload-area {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+}
+
+.player-modal-container .upload-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px;
+}
+
+.player-modal-container .upload-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.player-modal-container .upload-text {
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.player-modal-container .upload-hint {
+    font-size: 10px;
+    color: #6c757d;
+    margin-top: 4px;
+}
+
+.player-modal-container .file-selected {
+    width: 100%;
+    height: 100%;
+}
+
+.player-modal-container .photo-preview {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.player-modal-container .preview-image {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.player-modal-container .file-info {
+    margin-top: 8px;
+    text-align: center;
+}
+
+.player-modal-container .file-name {
+    font-size: 11px;
+    display: block;
+    word-break: break-word;
+    margin-bottom: 4px;
+}
+
+.player-modal-container .upload-status {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.player-modal-container .upload-badge {
+    font-size: 10px;
+    background: #28a745;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    display: inline-block;
+}
+
+.player-modal-container .remove-file {
+    font-size: 11px;
+    padding: 2px 6px;
+    margin-top: 4px;
+}

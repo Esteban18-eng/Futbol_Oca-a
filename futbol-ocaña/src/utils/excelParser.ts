@@ -1,7 +1,9 @@
+// src/utils/excelParser.ts
 import * as XLSX from 'xlsx';
 import { ExcelPlayerData } from '../components/Dasboard/coach/types/excel.types';
 
 export const excelParser = {
+  // NUEVA FUNCIÓN: Parsear archivo Excel
   parseExcelFile(file: File): Promise<any[]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -70,16 +72,18 @@ export const excelParser = {
       console.log(`📝 Procesando fila ${rowNumber}:`, row);
 
       try {
-        // Mapear según tu estructura de Excel específica:
-        // A: Año (2017, 2016, etc.), B: Club, C: Nombre Completo, D: Documento, E: Fecha, F-G-H: URLs
+        // Solo tomar los primeros 5 campos (excluyendo URLs)
+        // A: Año, B: Club, C: Nombre Completo, D: Documento, E: Fecha
         const año = row[0];
         const club = row[1];
         const nombreCompleto = row[2];
         const documento = row[3];
         const fechaNacimiento = row[4];
-        const fotoUrl = row[5];
-        const documentoUrl = row[6];
-        const registroUrl = row[7];
+        
+        // IGNORAR las URLs (columnas F, G, H)
+        // const fotoUrl = row[5]; // <-- IGNORADO
+        // const documentoUrl = row[6]; // <-- IGNORADO
+        // const registroUrl = row[7]; // <-- IGNORADO
 
         // Validar campos obligatorios
         if (!documento) {
@@ -128,12 +132,13 @@ export const excelParser = {
           tipo_eps: 'Contributivo',
           categoria_nombre: categoriaNombre,
           escuela_nombre: club.toString().trim(),
-          documento_pdf_url: documentoUrl?.toString().trim() || null,
-          registro_civil_url: registroUrl?.toString().trim() || null,
-          foto_perfil_url: fotoUrl?.toString().trim() || null
+          // NO incluir URLs en la importación
+          documento_pdf_url: null,
+          registro_civil_url: null,
+          foto_perfil_url: null
         };
 
-        console.log(`✅ Jugador ${rowNumber} válido:`, player);
+        console.log(`✅ Jugador ${rowNumber} válido (sin URLs):`, player);
         players.push(player);
 
       } catch (error) {
@@ -141,7 +146,7 @@ export const excelParser = {
       }
     }
 
-    console.log(`🎯 Total de jugadores válidos encontrados: ${players.length}`);
+    console.log(`🎯 Total de jugadores válidos encontrados (sin archivos): ${players.length}`);
     return players;
   },
 
@@ -153,7 +158,6 @@ export const excelParser = {
     if (partes.length === 0) return ['', ''];
     if (partes.length === 1) return [partes[0], ''];
     
-    // Tomar primer nombre y el resto como apellido
     const nombre = partes[0];
     const apellido = partes.slice(1).join(' ');
     

@@ -1,3 +1,4 @@
+// src/components/Dashboard/coach/Dashboard.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../../Dashboard.css';
@@ -29,7 +30,7 @@ import ProfileModal from './components/ProfileModal';
 import ExcelImportModal from '../../ExcelImportModal';
 import DocumentViewer from '../../shared/components/DocumentViewer';
 import { useFileUpload } from './hooks/useFileUpload';
-import { PeaceAndSafeData } from './types/peaceAndSafeTypes'; // NUEVA IMPORTACIÓN
+import { PeaceAndSafeData } from './types/peaceAndSafeTypes';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -80,7 +81,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estado para búsqueda automática
+  // Estados para búsqueda automática
   const [documentOpened, setDocumentOpened] = useState<boolean>(false);
   const [searchResult, setSearchResult] = useState<{
     found: boolean;
@@ -103,7 +104,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     documentViewer, 
     openDocument, 
     closeDocument,
-    uploadProgress
+    uploadProgress,
+    uploadFilesForEdit
   } = useFileUpload();
 
   // Estado inicial del nuevo jugador
@@ -122,136 +124,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   }), [currentUser.rol, currentUser.escuela_id]);
 
   const [newPlayer, setNewPlayer] = useState<Partial<Jugador>>(initialPlayerState);
-
-  // NUEVA FUNCIÓN: Manejar generación de Paz y Salvo
-  const handleGeneratePeaceAndSafe = useCallback(async (data: PeaceAndSafeData) => {
-    try {
-      setIsProcessing(true);
-      setProcessingMessage('Generando Paz y Salvo...');
-      
-      console.log('📄 Generando Paz y Salvo:', data);
-      
-      // Aquí implementarías la lógica para generar el PDF
-      // Por ahora mostramos una simulación
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Simular generación de PDF
-      /*const pdfContent = generarContenidoPazYSalvo(data);*/
-      
-      // En una implementación real, aquí:
-      // 1. Generarías el PDF usando una librería como jsPDF
-      // 2. Guardarías el PDF en Google Drive
-      // 3. Guardarías la referencia en Supabase
-      // 4. Descargarías el archivo para el usuario
-      
-      // Por ahora, mostramos el contenido en una nueva ventana
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Paz y Salvo - ${data.playerName}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .content { margin: 20px 0; }
-              .signatures { display: flex; justify-content: space-between; margin-top: 60px; }
-              .signature { text-align: center; width: 45%; }
-              .signature-line { border-top: 1px solid #000; margin: 60px auto 10px; width: 200px; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h2>ESCUELA / CLUB DE FÚTBOL ${data.schoolName}</h2>
-              <h3>PAZ Y SALVO DE JUGADOR</h3>
-            </div>
-            <div class="content">
-              <p>La presente certifica que el jugador <strong>${data.playerName}</strong>, 
-              quien pertenece o perteneció a la Escuela/Club <strong>${data.schoolName}</strong>, 
-              se encuentra paz y salvo por todo concepto deportivo, administrativo y disciplinario dentro de nuestra institución.</p>
-              
-              <p>Después de revisar los registros internos y confirmar que no existe pendiente alguna que impida su retiro o traslado, 
-              la escuela otorga plena autorización para que el mencionado jugador pueda retirarse de la institución y continuar 
-              su proceso formativo en cualquier otra escuela, club o entidad deportiva de su elección.</p>
-              
-              <p>Este paz y salvo se expide a solicitud del jugador, con el fin de ser presentado ante la Corporación de Fútbol Ocañero, 
-              entidad encargada de validar y formalizar su traslado conforme a los lineamientos establecidos.</p>
-              
-              <p>Se firma para constancia en la ciudad de Ocaña, a los ${formatDateForDocument(data.currentDate)}.</p>
-            </div>
-            <div class="signatures">
-              <div class="signature">
-                <div class="signature-line"></div>
-                <p><strong>${data.coachName}</strong></p>
-                <p>Entrenador / Director Técnico</p>
-                <p>Escuela ${data.schoolName}</p>
-              </div>
-              <div class="signature">
-                <div class="signature-line"></div>
-                <p><strong>${data.presidentName}</strong></p>
-                <p>Presidente / Representante Legal</p>
-                <p>Escuela ${data.schoolName}</p>
-              </div>
-            </div>
-          </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-      }
-      
-      setProcessingMessage('Paz y Salvo generado exitosamente');
-      
-    } catch (error: any) {
-      console.error('Error generando Paz y Salvo:', error);
-      setError(`Error al generar Paz y Salvo: ${error.message || 'Error desconocido'}`);
-    } finally {
-      setTimeout(() => {
-        setIsProcessing(false);
-        setProcessingMessage('');
-      }, 1000);
-    }
-  }, []);
-
-  // Función auxiliar para formatear fecha del documento
-  const formatDateForDocument = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day} / ${month} / ${year}`;
-  };
-
-  // Función auxiliar para generar contenido del Paz y Salvo
- /* const generarContenidoPazYSalvo = (data: PeaceAndSafeData) => {
-    return `
-      ESCUELA / CLUB DE FÚTBOL ${data.schoolName}
-      PAZ Y SALVO DE JUGADOR
-
-      La presente certifica que el jugador ${data.playerName}, quien pertenece o perteneció a la Escuela/Club ${data.schoolName}, 
-      se encuentra paz y salvo por todo concepto deportivo, administrativo y disciplinario dentro de nuestra institución.
-
-      Después de revisar los registros internos y confirmar que no existe pendiente alguna que impida su retiro o traslado, 
-      la escuela otorga plena autorización para que el mencionado jugador pueda retirarse de la institución y continuar 
-      su proceso formativo en cualquier otra escuela, club o entidad deportiva de su elección.
-
-      Este paz y salvo se expide a solicitud del jugador, con el fin de ser presentado ante la Corporación de Fútbol Ocañero, 
-      entidad encargada de validar y formalizar su traslado conforme a los lineamientos establecidos.
-
-      Se firma para constancia en la ciudad de Ocaña, a los ${formatDateForDocument(data.currentDate)}.
-
-      ______________________________
-      ${data.coachName}
-      Entrenador / Director Técnico
-      Escuela ${data.schoolName}
-
-      ______________________________
-      ${data.presidentName}
-      Presidente / Representante Legal
-      Escuela ${data.schoolName}
-    `;
-  };*/
 
   // FUNCIÓN PARA RECARGAR PLAYERS
   const reloadPlayers = useCallback(async () => {
@@ -434,7 +306,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
 
   // Función para manejar éxito en importación Excel
   const handleImportSuccess = useCallback(() => {
-    reloadPlayers(); // Recargar jugadores después de importar
+    reloadPlayers();
     setShowExcelImport(false);
   }, [reloadPlayers]);
 
@@ -585,7 +457,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       }
 
       // Subir archivos
-      const uploadResults = await uploadFiles(newPlayer.documento);
+      const uploadResults = await uploadFiles(newPlayer.documento, ['foto_perfil']);
       
       if (!uploadResults) {
         return;
@@ -603,9 +475,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         escuela_id: newPlayer.escuela_id,
         eps: newPlayer.eps,
         tipo_eps: newPlayer.tipo_eps || 'Subsidiado',
-        foto_perfil_url: uploadResults.foto_perfil,
-        documento_pdf_url: uploadResults.documento_pdf,
-        registro_civil_url: uploadResults.registro_civil
+        foto_perfil_url: uploadResults.foto_perfil || '',
+        documento_pdf_url: uploadResults.documento_pdf || '',
+        registro_civil_url: uploadResults.registro_civil || ''
       };
 
       const result = await createJugador(playerData);
@@ -676,6 +548,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setShowPlayerModal(true);
     setIsEditing(false);
     
+    // Resetear archivos de edición
+    resetFiles();
+    
     // Cargar países para edición
     const paisesResult = await getPaises();
     if (!paisesResult.error) {
@@ -701,15 +576,54 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         }
       }
     }
-  }, [loadEditDepartamentosByPais, loadEditCiudadesByDepartamento]);
+  }, [loadEditDepartamentosByPais, loadEditCiudadesByDepartamento, resetFiles]);
 
-  // Función para actualizar jugador
-  const handleUpdatePlayer = useCallback(async () => {
+  // FUNCIÓN PARA ACTUALIZAR JUGADOR CON ARCHIVOS
+  const handleUpdatePlayerWithFiles = useCallback(async () => {
     if (!selectedPlayer || !originalPlayer) return;
 
     try {
       setIsSaving(true);
+      setProcessingMessage('Actualizando jugador...');
       setError(null);
+
+      // Preparar archivos para subir (si hay)
+      const filesToUpload = {
+        foto_perfil: files.foto_perfil,
+        documento_pdf: files.documento_pdf,
+        registro_civil: files.registro_civil
+      };
+
+      let uploadedFileUrls: {[key: string]: string} = {};
+      
+      // Subir archivos si hay cambios
+      const hasFileChanges = Object.values(filesToUpload).some(file => file !== null);
+      if (hasFileChanges && selectedPlayer) {
+        setProcessingMessage('Subiendo archivos...');
+        
+        const uploadResult = await uploadFilesForEdit(
+          selectedPlayer.id,
+          selectedPlayer.documento, 
+          filesToUpload
+        );
+        
+        if (!uploadResult) {
+          setError('Error subiendo archivos');
+          setIsSaving(false);
+          setProcessingMessage('');
+          return;
+        }
+        
+        // Convertir las URLs
+        uploadedFileUrls = {
+          foto_perfil_url: uploadResult.foto_perfil || selectedPlayer.foto_perfil_url || '',
+          documento_pdf_url: uploadResult.documento_pdf || selectedPlayer.documento_pdf_url || '',
+          registro_civil_url: uploadResult.registro_civil || selectedPlayer.registro_civil_url || ''
+        };
+      }
+
+      // Actualizar datos básicos del jugador
+      setProcessingMessage('Actualizando datos del jugador...');
       
       const updates = {
         nombre: selectedPlayer.nombre,
@@ -719,24 +633,40 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         departamento: selectedPlayer.departamento,
         ciudad: selectedPlayer.ciudad,
         eps: selectedPlayer.eps,
-        tipo_eps: selectedPlayer.tipo_eps
+        tipo_eps: selectedPlayer.tipo_eps,
+        // Incluir URLs de archivos si se subieron
+        ...uploadedFileUrls
       };
 
       const result = await updateJugador(selectedPlayer.id, updates);
       
       if (result.error) throw result.error;
       
+      // Recargar jugadores
       await reloadPlayers();
-      setOriginalPlayer({...selectedPlayer});
+      
+      // Actualizar el jugador seleccionado con los nuevos datos
+      if (result.data) {
+        setSelectedPlayer(result.data);
+        setOriginalPlayer(result.data);
+      }
+      
+      // Resetear estados
       setIsEditing(false);
+      resetFiles();
+      
+      setProcessingMessage('Jugador actualizado exitosamente');
       
     } catch (err: any) {
-      console.error('Error updating player:', err);
+      console.error('Error updating player with files:', err);
       setError(err.message || 'Error actualizando jugador');
     } finally {
-      setIsSaving(false);
+      setTimeout(() => {
+        setIsSaving(false);
+        setProcessingMessage('');
+      }, 1000);
     }
-  }, [selectedPlayer, originalPlayer, reloadPlayers]);
+  }, [selectedPlayer, originalPlayer, files, uploadFilesForEdit, reloadPlayers, resetFiles]);
 
   // Función para cancelar edición
   const handleCancelEdit = useCallback(() => {
@@ -744,8 +674,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setSelectedPlayer({...originalPlayer});
     }
     setIsEditing(false);
+    resetFiles();
     setError(null);
-  }, [originalPlayer]);
+  }, [originalPlayer, resetFiles]);
 
   // Función para eliminar jugador
   const handleDeletePlayer = useCallback(async (playerId: string) => {
@@ -799,7 +730,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setIsProcessing(true);
       setProcessingMessage('Preparando impresión...');
       
-      // Crear el contenido HTML para impresión con mejor manejo de imágenes
       const printContent = `
         <!DOCTYPE html>
         <html>
@@ -890,8 +820,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
                 border-top: 2px solid #eee; 
                 padding-top: 20px; 
                 margin-top: 20px; 
-              }
-              .section-title { 
+  }              .section-title { 
                 color: #2c3e50; 
                 margin-bottom: 15px; 
                 font-size: 18px; 
@@ -948,7 +877,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
               }
             </style>
             <script>
-              // Función para manejar errores de imagen
               function handleImageError(img) {
                 console.log('Error cargando imagen, mostrando placeholder');
                 img.style.display = 'none';
@@ -958,7 +886,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
                 }
               }
               
-              // Precargar imagen antes de imprimir
               window.onload = function() {
                 var img = document.getElementById('player-photo');
                 if (img && img.complete && img.naturalHeight === 0) {
@@ -1064,7 +991,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       printWindow.document.write(printContent);
       printWindow.document.close();
       
-      // Esperar a que la imagen se cargue antes de imprimir
       await new Promise<void>((resolve) => {
         if (printWindow.document.readyState === 'complete') {
           resolve();
@@ -1073,17 +999,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         }
       });
 
-      // Esperar adicionalmente para que las imágenes se carguen
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       printWindow.focus();
       
-      // Usar un enfoque más robusto para la impresión
       const printWithFallback = () => {
         try {
           printWindow.print();
           
-          // Cerrar la ventana después de un tiempo
           setTimeout(() => {
             try {
               if (!printWindow.closed) {
@@ -1097,7 +1020,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         } catch (printError: any) {
           console.error('Error al imprimir:', printError);
           
-          // Fallback: Descargar como PDF si la impresión directa falla
           try {
             const printStyles = `
               <style>
@@ -1133,7 +1055,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         }
       };
 
-      // Esperar un poco más para asegurar que todo esté cargado
       setTimeout(printWithFallback, 500);
       
     } catch (error: any) {
@@ -1153,7 +1074,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setIsProcessing(true);
       setProcessingMessage('Preparando descarga...');
       
-      // Array para almacenar las URLs de los documentos disponibles
       const documentsToDownload = [];
       
       if (selectedPlayer.registro_civil_url) {
@@ -1179,13 +1099,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         return;
       }
 
-      // Función para descargar un archivo individual
       const downloadFile = async (fileInfo: {url: string, filename: string, type: string}) => {
         return new Promise<void>(async (resolve, reject) => {
           try {
             console.log(`Iniciando descarga de: ${fileInfo.filename}`);
             
-            // Intentar descargar usando fetch y Blob (método más confiable)
             const response = await fetch(fileInfo.url);
             
             if (!response.ok) {
@@ -1201,11 +1119,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
             link.style.display = 'none';
             
             document.body.appendChild(link);
-            
-            // Disparar el evento de clic
             link.click();
             
-            // Limpiar después de un tiempo
             setTimeout(() => {
               document.body.removeChild(link);
               URL.revokeObjectURL(blobUrl);
@@ -1215,7 +1130,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
           } catch (error) {
             console.error(`Error descargando ${fileInfo.type}:`, error);
             
-            // Fallback: intentar con el método tradicional
             try {
               const link = document.createElement('a');
               link.href = fileInfo.url;
@@ -1237,20 +1151,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         });
       };
 
-      // Descargar todos los documentos disponibles
       if (documentsToDownload.length === 1) {
-        // Si solo hay un documento, descargarlo directamente
         await downloadFile(documentsToDownload[0]);
         setProcessingMessage('Descarga completada');
       } else {
-        // Si hay múltiples documentos, descargarlos secuencialmente
         setProcessingMessage(`Descargando 1 de ${documentsToDownload.length} documentos...`);
         
         for (let i = 0; i < documentsToDownload.length; i++) {
           setProcessingMessage(`Descargando ${i + 1} de ${documentsToDownload.length} documentos...`);
           await downloadFile(documentsToDownload[i]);
           
-          // Pequeña pausa entre descargas
           if (i < documentsToDownload.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 500));
           }
@@ -1259,7 +1169,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         setProcessingMessage('Todos los documentos descargados');
       }
 
-      // Mostrar mensaje de éxito
       setTimeout(() => {
         setIsProcessing(false);
         setProcessingMessage('');
@@ -1291,8 +1200,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setEditSelectedDepartamentoId('');
     setEditDepartamentos([]);
     setEditCiudades([]);
+    resetFiles();
     setError(null);
-  }, [isProcessing]);
+  }, [isProcessing, resetFiles]);
 
   // Función para cerrar modal de agregar jugador
   const closeAddModal = useCallback(() => {
@@ -1317,6 +1227,94 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     
     return age;
   }, []);
+
+  // NUEVA FUNCIÓN: Manejar generación de Paz y Salvo
+  const handleGeneratePeaceAndSafe = useCallback(async (data: PeaceAndSafeData) => {
+    try {
+      setIsProcessing(true);
+      setProcessingMessage('Generando Paz y Salvo...');
+      
+      console.log('📄 Generando Paz y Salvo:', data);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Paz y Salvo - ${data.playerName}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+              .header { text-align: center; margin-bottom: 30px; }
+              .content { margin: 20px 0; }
+              .signatures { display: flex; justify-content: space-between; margin-top: 60px; }
+              .signature { text-align: center; width: 45%; }
+              .signature-line { border-top: 1px solid #000; margin: 60px auto 10px; width: 200px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h2>ESCUELA / CLUB DE FÚTBOL ${data.schoolName}</h2>
+              <h3>PAZ Y SALVO DE JUGADOR</h3>
+            </div>
+            <div class="content">
+              <p>La presente certifica que el jugador <strong>${data.playerName}</strong>, 
+              quien pertenece o perteneció a la Escuela/Club <strong>${data.schoolName}</strong>, 
+              se encuentra paz y salvo por todo concepto deportivo, administrativo y disciplinario dentro de nuestra institución.</p>
+              
+              <p>Después de revisar los registros internos y confirmar que no existe pendiente alguna que impida su retiro o traslado, 
+              la escuela otorga plena autorización para que el mencionado jugador pueda retirarse de la institución y continuar 
+              su proceso formativo en cualquier otra escuela, club o entidad deportiva de su elección.</p>
+              
+              <p>Este paz y salvo se expide a solicitud del jugador, con el fin de ser presentado ante la Corporación de Fútbol Ocañero, 
+              entidad encargada de validar y formalizar su traslado conforme a los lineamientos establecidos.</p>
+              
+              <p>Se firma para constancia en la ciudad de Ocaña, a los ${formatDateForDocument(data.currentDate)}.</p>
+            </div>
+            <div class="signatures">
+              <div class="signature">
+                <div class="signature-line"></div>
+                <p><strong>${data.coachName}</strong></p>
+                <p>Entrenador / Director Técnico</p>
+                <p>Escuela ${data.schoolName}</p>
+              </div>
+              <div class="signature">
+                <div class="signature-line"></div>
+                <p><strong>${data.presidentName}</strong></p>
+                <p>Presidente / Representante Legal</p>
+                <p>Escuela ${data.schoolName}</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+      }
+      
+      setProcessingMessage('Paz y Salvo generado exitosamente');
+      
+    } catch (error: any) {
+      console.error('Error generando Paz y Salvo:', error);
+      setError(`Error al generar Paz y Salvo: ${error.message || 'Error desconocido'}`);
+    } finally {
+      setTimeout(() => {
+        setIsProcessing(false);
+        setProcessingMessage('');
+      }, 1000);
+    }
+  }, []);
+
+  // Función auxiliar para formatear fecha del documento
+  const formatDateForDocument = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day} / ${month} / ${year}`;
+  };
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -1556,7 +1554,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
           editSelectedDepartamentoId={editSelectedDepartamentoId}
           onClose={closePlayerModal}
           onEdit={() => setIsEditing(true)}
-          onSave={handleUpdatePlayer}
+          onSave={handleUpdatePlayerWithFiles}
           onCancelEdit={handleCancelEdit}
           onDelete={handleDeletePlayer}
           onInputChange={handleEditInputChange}
@@ -1565,7 +1563,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
           onDocumentOpen={handleDocumentOpen}
           onLoadEditDepartamentos={loadEditDepartamentosByPais}
           onLoadEditCiudades={loadEditCiudadesByDepartamento}
-          onGeneratePeaceAndSafe={handleGeneratePeaceAndSafe} // NUEVA PROP
+          onGeneratePeaceAndSafe={handleGeneratePeaceAndSafe}
         />
       )}
     </div>

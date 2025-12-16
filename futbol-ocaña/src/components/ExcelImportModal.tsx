@@ -108,10 +108,10 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const downloadTemplate = () => {
     // Crear datos de ejemplo basados en tu estructura real
     const templateData = [
-      ['Año/Categoría*', 'Escuela*', 'Nombre Completo*', 'Documento*', 'Fecha Nacimiento*', 'URL Foto', 'URL Documento', 'URL Registro Civil'],
-      [2017, 'Athletic F.C.', 'Juan Jose Velasquez Quesada', '1092190584', '22/04/2018', 'https://drive.google.com/...', 'https://drive.google.com/...', 'https://drive.google.com/...'],
-      [2016, 'Athletic F.C.', 'Cristian Alejandro Castro Pérez', '1092190572', '13/04/2018', 'https://drive.google.com/...', 'https://drive.google.com/...', 'https://drive.google.com/...'],
-      [2015, 'Athletic F.C.', 'Daniel Alejandro Navarro Galvis', '1091999103', '14/09/2015', '', '', '']
+      ['Año/Categoría*', 'Escuela*', 'Nombre Completo*', 'Documento*', 'Fecha Nacimiento*'],
+      [2017, 'Athletic F.C.', 'Juan Jose Velasquez Quesada', '1092190584', '22/04/2018'],
+      [2016, 'Athletic F.C.', 'Cristian Alejandro Castro Pérez', '1092190572', '13/04/2018'],
+      [2015, 'Athletic F.C.', 'Daniel Alejandro Navarro Galvis', '1091999103', '14/09/2015']
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(templateData);
@@ -158,15 +158,6 @@ const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               </div>
               <div className="instruction-item">
                 <strong>Columna E:</strong> Fecha Nacimiento* (DD/MM/YYYY)
-              </div>
-              <div className="instruction-item">
-                <strong>Columna F:</strong> URL Foto (Google Drive)
-              </div>
-              <div className="instruction-item">
-                <strong>Columna G:</strong> URL Documento
-              </div>
-              <div className="instruction-item">
-                <strong>Columna H:</strong> URL Registro Civil
               </div>
             </div>
             <p className="instruction-note">

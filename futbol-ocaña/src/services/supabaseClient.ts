@@ -701,3 +701,30 @@ export const getCiudadesByDepartamento = async (departamentoId: string) => {
   
   return { data: data as Ciudad[] | null, error }
 }
+
+// Función para actualizar las URLs de archivos de un jugador
+export const updatePlayerFileUrls = async (playerId: string, fileUrls: {
+  foto_perfil_url?: string;
+  documento_pdf_url?: string;
+  registro_civil_url?: string;
+}): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log('📝 Actualizando URLs de archivos para jugador:', playerId, fileUrls);
+    
+    const { error } = await supabase
+      .from('jugadores')
+      .update(fileUrls)
+      .eq('id', playerId);
+
+    if (error) {
+      console.error('❌ Error actualizando URLs:', error);
+      return { success: false, error: error.message };
+    }
+    
+    console.log('✅ URLs actualizadas exitosamente');
+    return { success: true };
+  } catch (error: any) {
+    console.error('💥 Error inesperado actualizando URLs:', error);
+    return { success: false, error: error.message };
+  }
+};

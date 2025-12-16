@@ -1,36 +1,8 @@
-import { ExcelPlayerData, ImportResult/*, FailedImport*/} from '../components/Dasboard/coach/types/excel.types';
+// src/services/excelImportService.ts
+import { ExcelPlayerData, ImportResult } from '../components/Dasboard/coach/types/excel.types';
 import { supabase } from './supabaseClient';
 
 export const excelImportService = {
-  validateExcelData(jsonData: any[]): ExcelPlayerData[] {
-    console.log('🔍 Validando datos del Excel...');
-    console.log('📋 Estructura recibida:', jsonData);
-    
-    // Si es un array de arrays (estructura de sheet_to_json con header: 1)
-    if (Array.isArray(jsonData) && jsonData.length > 0 && Array.isArray(jsonData[0])) {
-      console.log('📊 Estructura detectada: Array de arrays');
-      // El parser ya se encargará de esto
-      return [];
-    }
-    
-    // Si es un array de objetos (estructura de sheet_to_json normal)
-    if (Array.isArray(jsonData) && jsonData.length > 0 && typeof jsonData[0] === 'object') {
-      console.log('📊 Estructura detectada: Array de objetos');
-      console.log('🔑 Campos disponibles:', Object.keys(jsonData[0]));
-      
-      // Convertir a array de arrays para el parser
-      const headers = Object.keys(jsonData[0]);
-      const arrayData = jsonData.map((obj: any) => 
-        headers.map(header => obj[header])
-      );
-      arrayData.unshift(headers); // Agregar headers como primera fila
-      
-      return [];
-    }
-    
-    throw new Error('Formato de datos no reconocido');
-  },
-
   async importPlayers(
     players: ExcelPlayerData[], 
     categorias: any[], 
@@ -51,90 +23,98 @@ export const excelImportService = {
 
     for (let i = 0; i < players.length; i++) {
       const playerData = players[i];
-      const rowNumber = i + 2; // +2 porque Excel tiene headers y base 1
+      const rowNumber = i + 2;
       
       console.log(`\n👤 Procesando jugador ${i + 1}/${players.length}:`, playerData.nombre, playerData.apellido);
 
       try {
-        // Buscar categoría con coincidencia flexible
+        // Filtrar solo los campos básicos del jugador
+        const cleanPlayerData = {
+          documento: playerData.documento,
+          nombre: playerData.nombre,
+          apellido: playerData.apellido,
+          fecha_nacimiento: playerData.fecha_nacimiento,
+          categoria_nombre: playerData.categoria_nombre,
+          escuela_nombre: playerData.escuela_nombre,
+          pais: playerData.pais || 'Colombia',
+          departamento: playerData.departamento || 'Norte de Santander',
+          ciudad: playerData.ciudad || 'Ocaña',
+          eps: playerData.eps || '',
+          tipo_eps: playerData.tipo_eps || 'Contributivo'
+        };
+
+        console.log('📊 Datos limpios del jugador (sin URLs):', cleanPlayerData);
+
+        // Buscar categoría
         const categoria = categorias.find(cat => {
           const catNombre = cat.nombre.toLowerCase();
-          const playerCat = playerData.categoria_nombre.toLowerCase();
+          const playerCat = cleanPlayerData.categoria_nombre.toLowerCase();
           
-          const match = catNombre.includes(playerCat) || 
-                       playerCat.includes(catNombre) ||
-                       catNombre.replace(/[^a-z0-9]/g, '') === playerCat.replace(/[^a-z0-9]/g, '');
-          
-          if (match) {
-            console.log(`✅ Categoría encontrada: "${playerData.categoria_nombre}" -> "${cat.nombre}"`);
-          }
-          return match;
+          return catNombre.includes(playerCat) || 
+                 playerCat.includes(catNombre) ||
+                 catNombre.replace(/[^a-z0-9]/g, '') === playerCat.replace(/[^a-z0-9]/g, '');
         });
         
         if (!categoria) {
-          throw new Error(`Categoría no encontrada: "${playerData.categoria_nombre}". Disponibles: ${categorias.map(c => c.nombre).join(', ')}`);
+          throw new Error(`Categoría no encontrada: "${cleanPlayerData.categoria_nombre}". Disponibles: ${categorias.map(c => c.nombre).join(', ')}`);
         }
 
-        // Buscar escuela con coincidencia flexible  
+        // Buscar escuela  
         const escuela = escuelas.find(esc => {
           const escNombre = esc.nombre.toLowerCase();
-          const playerEsc = playerData.escuela_nombre.toLowerCase();
+          const playerEsc = cleanPlayerData.escuela_nombre.toLowerCase();
           
-          const match = escNombre.includes(playerEsc) || 
-                       playerEsc.includes(escNombre) ||
-                       escNombre.replace(/[^a-z0-9]/g, '') === playerEsc.replace(/[^a-z0-9]/g, '');
-          
-          if (match) {
-            console.log(`✅ Escuela encontrada: "${playerData.escuela_nombre}" -> "${esc.nombre}"`);
-          }
-          return match;
+          return escNombre.includes(playerEsc) || 
+                 playerEsc.includes(escNombre) ||
+                 escNombre.replace(/[^a-z0-9]/g, '') === playerEsc.replace(/[^a-z0-9]/g, '');
         });
 
         if (!escuela) {
-          throw new Error(`Escuela no encontrada: "${playerData.escuela_nombre}". Disponibles: ${escuelas.map(e => e.nombre).join(', ')}`);
+          throw new Error(`Escuela no encontrada: "${cleanPlayerData.escuela_nombre}". Disponibles: ${escuelas.map(e => e.nombre).join(', ')}`);
         }
 
         // Verificar si el jugador ya existe
         const { data: existingPlayer, error: checkError } = await supabase
           .from('jugadores')
           .select('id, nombre, apellido')
-          .eq('documento', playerData.documento)
+          .eq('documento', cleanPlayerData.documento)
           .single();
 
-        if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no encontrado
+        if (checkError && checkError.code !== 'PGRST116') {
           console.error('❌ Error verificando jugador existente:', checkError);
           throw new Error(`Error al verificar jugador: ${checkError.message}`);
         }
 
         if (existingPlayer) {
-          throw new Error(`Jugador con documento ${playerData.documento} ya existe: ${existingPlayer.nombre} ${existingPlayer.apellido}`);
+          throw new Error(`Jugador con documento ${cleanPlayerData.documento} ya existe: ${existingPlayer.nombre} ${existingPlayer.apellido}`);
         }
 
-        // Preparar datos para inserción
+        // Preparar datos para inserción (SIN URLs)
         const playerToInsert = {
-          documento: playerData.documento,
-          nombre: playerData.nombre,
-          apellido: playerData.apellido,
-          fecha_nacimiento: playerData.fecha_nacimiento,
+          documento: cleanPlayerData.documento,
+          nombre: cleanPlayerData.nombre,
+          apellido: cleanPlayerData.apellido,
+          fecha_nacimiento: cleanPlayerData.fecha_nacimiento,
           categoria_id: categoria.id,
           escuela_id: escuela.id,
-          ciudad: playerData.ciudad || 'Ocaña',
-          departamento: playerData.departamento || 'Norte de Santander',
-          eps: playerData.eps || '',
-          tipo_eps: playerData.tipo_eps || 'Contributivo',
-          pais: playerData.pais || 'Colombia',
+          ciudad: cleanPlayerData.ciudad,
+          departamento: cleanPlayerData.departamento,
+          eps: cleanPlayerData.eps,
+          tipo_eps: cleanPlayerData.tipo_eps,
+          pais: cleanPlayerData.pais,
           activo: true,
           ciudad_id: null,
           departamento_id: null,
           pais_id: null,
-          foto_perfil_url: playerData.foto_perfil_url || null,
-          documento_pdf_url: playerData.documento_pdf_url || null,
-          registro_civil_url: playerData.registro_civil_url || null,
+          // NO incluir URLs en la importación
+          foto_perfil_url: null,
+          documento_pdf_url: null,
+          registro_civil_url: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
 
-        console.log('💾 Insertando jugador en base de datos...');
+        console.log('💾 Insertando jugador en base de datos (sin URLs)...');
         const { error: insertError } = await supabase
           .from('jugadores')
           .insert([playerToInsert]);
@@ -145,7 +125,7 @@ export const excelImportService = {
         }
 
         result.imported++;
-        console.log(`✅ Jugador ${playerData.nombre} ${playerData.apellido} importado correctamente`);
+        console.log(`✅ Jugador ${cleanPlayerData.nombre} ${cleanPlayerData.apellido} importado correctamente (sin archivos)`);
 
       } catch (error) {
         console.error(`❌ Error en fila ${rowNumber}:`, error);
@@ -169,7 +149,7 @@ export const excelImportService = {
       result.errors.push(`${result.failedImports.length} jugadores no pudieron ser importados`);
       console.warn(`⚠️  Importación completada con ${result.failedImports.length} errores`);
     } else {
-      console.log(`🎉 Importación completada exitosamente: ${result.imported} jugadores importados`);
+      console.log(`🎉 Importación completada exitosamente: ${result.imported} jugadores importados (sin archivos adjuntos)`);
     }
 
     return result;

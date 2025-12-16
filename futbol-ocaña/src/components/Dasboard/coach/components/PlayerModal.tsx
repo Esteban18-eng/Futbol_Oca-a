@@ -1,7 +1,7 @@
+// src/components/coach/components/PlayerModal.tsx
 import React, { useState, useEffect } from 'react';
 import { PlayerModalProps } from '../types/coachTypes';
 import { 
-    /*convertGoogleDriveUrl,*/ 
     getGoogleDriveImageUrls, 
     getGoogleDriveUrlType,
     diagnoseGoogleDriveUrl,
@@ -9,7 +9,15 @@ import {
 } from '../../../../utils/googleDriveUtils';
 import PeaceAndSafeModal from './PeaceAndSafeModal';
 import { PeaceAndSafeData } from '../types/peaceAndSafeTypes';
+import FileUpload from '../../../shared/components/fileUpload';
+import { PlayerFiles } from '../../../../services/supabaseClient';
 import './PlayerModal.css';
+
+interface LocalPlayerFiles {
+    foto_perfil: File | null;
+    documento_pdf: File | null;
+    registro_civil: File | null;
+}
 
 const PlayerModal: React.FC<PlayerModalProps> = ({
     player,
@@ -39,8 +47,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
 }) => {
     if (!player) return null;
 
-    /*const [localEditPais, setLocalEditPais] = useState('');
-    const [/*localEditDepartamento, setLocalEditDepartamento] = useState('');*/
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
     const [convertedImageUrl, setConvertedImageUrl] = useState('');
@@ -55,16 +61,21 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         urlType: 'file' | 'folder' | 'unknown';
     } | null>(null);
     const [showDiagnostic, setShowDiagnostic] = useState(false);
-    const [showPeaceAndSafeModal, setShowPeaceAndSafeModal] = useState(false); // NUEVO ESTADO
+    const [showPeaceAndSafeModal, setShowPeaceAndSafeModal] = useState(false);
+    
+    // NUEVO: Estados para archivos en edición
+    const [localFiles, setLocalFiles] = useState<LocalPlayerFiles>({
+        foto_perfil: null,
+        documento_pdf: null,
+        registro_civil: null
+    });
+    const [filePreviews, setFilePreviews] = useState<{
+        foto_perfil: string | null;
+    }>({
+        foto_perfil: null
+    });
 
     useEffect(() => {
-        /*if (player.pais) {
-            setLocalEditPais(player.pais);
-        }
-        if (player.departamento) {
-            setLocalEditDepartamento(player.departamento);
-        }*/
-        
         // Reset image states cuando cambia el jugador
         setImageError(false);
         setImageLoaded(false);
@@ -73,7 +84,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         setDiagnosticInfo(null);
         
         // Verificar tipo de URL y generar URLs
-        if (player.foto_perfil_url) {
+        if (player.foto_perfil_url && !isEditing) {
             const type = getGoogleDriveUrlType(player.foto_perfil_url);
             setUrlType(type);
             console.log('📋 Tipo de URL detectado:', type);
@@ -96,7 +107,19 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
             setImageUrls([]);
             setConvertedImageUrl('');
         }
-    }, [player]);
+        
+        // Resetear archivos locales cuando se cancela la edición
+        if (!isEditing) {
+            setLocalFiles({
+                foto_perfil: null,
+                documento_pdf: null,
+                registro_civil: null
+            });
+            setFilePreviews({
+                foto_perfil: null
+            });
+        }
+    }, [player, isEditing]);
 
     useEffect(() => {
         if (documentOpened) {
@@ -104,25 +127,59 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         }
     }, [documentOpened]);
 
-    // NUEVA FUNCIÓN: Manejar generación de Paz y Salvo
-    const handleGeneratePeaceAndSafe = (data: PeaceAndSafeData) => {
-        console.log('📄 Generando Paz y Salvo:', data);
-        if (onGeneratePeaceAndSafe) {
-            onGeneratePeaceAndSafe(data);
-        } else {
-            // Fallback: generar PDF directamente
-            generatePeaceAndSafePDF(data);
+    // NUEVO: Función para manejar selección de archivos
+    const handleFileSelect = (fileType: keyof PlayerFiles, file: File | null) => {
+        setLocalFiles(prev => ({
+            ...prev,
+            [fileType]: file
+        }));
+
+        // Generar preview para foto de perfil
+        if (fileType === 'foto_perfil' && file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setFilePreviews(prev => ({
+                    ...prev,
+                    foto_perfil: e.target?.result as string
+                }));
+            };
+            reader.readAsDataURL(file);
         }
     };
 
-    // NUEVA FUNCIÓN: Generar PDF de Paz y Salvo (placeholder)
-    const generatePeaceAndSafePDF = (data: PeaceAndSafeData) => {
-        // Aquí implementarías la generación real del PDF
-        // Por ahora mostramos una alerta
-        alert(`Paz y Salvo generado para ${data.playerName}\n\nSe guardará en Google Drive y se descargará automáticamente.`);
+    // NUEVO: Función para preparar datos con archivos
+    const prepareSaveData = () => {
+        const updatedPlayer = { ...player };
+        const formData = new FormData();
+        let hasFileChanges = false;
+
+        // Agregar archivos al FormData si existen
+        Object.entries(localFiles).forEach(([key, file]) => {
+            if (file) {
+                formData.append(key, file);
+                hasFileChanges = true;
+            }
+        });
+
+        return {
+            playerData: updatedPlayer,
+            formData: hasFileChanges ? formData : null,
+            fileChanges: localFiles
+        };
+    };
+
+    // NUEVO: Función para manejar guardado con archivos
+    const handleSaveWithFiles = () => {
+        const { /*playerData,*/ formData, fileChanges } = prepareSaveData();
         
-        // En una implementación real, aquí llamarías a un servicio para generar el PDF
-        // y guardarlo en Google Drive/Supabase
+        // Primero actualizar datos del jugador
+        // Luego subir archivos si existen
+        if (formData) {
+            console.log('📤 Guardando jugador con archivos:', fileChanges);
+        }
+        
+        // Llamar al onSave original
+        onSave();
     };
 
     const calculateAge = (birthDate: string) => {
@@ -163,7 +220,8 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
 
     const hasChanges = () => {
         if (!originalPlayer) return false;
-        return (
+        
+        const dataChanges = (
             player.nombre !== originalPlayer.nombre ||
             player.apellido !== originalPlayer.apellido ||
             player.fecha_nacimiento !== originalPlayer.fecha_nacimiento ||
@@ -173,12 +231,15 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
             player.eps !== originalPlayer.eps ||
             player.tipo_eps !== originalPlayer.tipo_eps
         );
+
+        const fileChanges = Object.values(localFiles).some(file => file !== null);
+        
+        return dataChanges || fileChanges;
     };
 
     const handleImageError = () => {
         console.error(`❌ Error cargando la imagen (intento ${currentUrlIndex + 1}/${imageUrls.length}):`, convertedImageUrl);
         
-        // Intentar con la siguiente URL
         if (currentUrlIndex < imageUrls.length - 1) {
             const nextIndex = currentUrlIndex + 1;
             console.log(`🔄 Intentando con siguiente URL (${nextIndex + 1}/${imageUrls.length}):`, imageUrls[nextIndex]);
@@ -187,7 +248,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
             setImageError(false);
             setImageLoaded(false);
         } else {
-            // No hay más URLs para probar
             setImageError(true);
             setImageLoaded(false);
             console.log('❌ Todas las URLs fallaron');
@@ -200,7 +260,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         setImageError(false);
     };
 
-    // Función para forzar la recarga de la imagen
     const reloadImage = () => {
         console.log('🔄 Reintentando cargar imagen desde el principio...');
         setImageError(false);
@@ -212,7 +271,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         }
     };
 
-    // Función para ejecutar diagnóstico
     const runDiagnostic = async () => {
         if (player.foto_perfil_url) {
             console.log('🔍 Ejecutando diagnóstico...');
@@ -223,24 +281,28 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         }
     };
 
-    // Función para manejar documentos - CORREGIDA
     const handleDocumentOpen = (url: string, filename: string) => {
         console.log('📄 Abriendo documento en modal interno:', filename);
         
-        // Llamar al callback para abrir el DocumentViewer modal
         if (onDocumentOpen) {
             onDocumentOpen(url, filename);
         } else {
             console.warn('❌ onDocumentOpen callback no disponible');
-            // Fallback: abrir en ventana externa si no hay callback
             const fileId = getGoogleDriveFileId(url);
             const viewerUrl = fileId 
                 ? `https://drive.google.com/file/d/${fileId}/view`
                 : url;
             window.open(viewerUrl, '_blank', 'noopener,noreferrer');
         }
-        
-        console.log('✅ Documento abierto en modal interno:', filename);
+    };
+
+    const handleGeneratePeaceAndSafe = (data: PeaceAndSafeData) => {
+        console.log('📄 Generando Paz y Salvo:', data);
+        if (onGeneratePeaceAndSafe) {
+            onGeneratePeaceAndSafe(data);
+        } else {
+            alert(`Paz y Salvo generado para ${data.playerName}\n\nSe guardará en Google Drive y se descargará automáticamente.`);
+        }
     };
 
     return (
@@ -259,7 +321,22 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                     {/* Header con foto e información básica */}
                     <div className="player-header-info">
                         <div className="player-photo-wrapper">
-                            {convertedImageUrl && !imageError ? (
+                            {isEditing ? (
+                                // NUEVO: Mostrar FileUpload en modo edición
+                                <div className="player-photo-edit">
+                                    <FileUpload
+                                        type="foto_perfil"
+                                        label="Foto de Perfil"
+                                        accept="image/jpeg,image/png,image/jpg"
+                                        maxSize="5"
+                                        onFileSelect={handleFileSelect}
+                                        currentFile={localFiles.foto_perfil}
+                                        currentUrl={filePreviews.foto_perfil || player.foto_perfil_url || null}
+                                        required={false}
+                                    />
+                                </div>
+                            ) : convertedImageUrl && !imageError ? (
+                                // Mostrar imagen normal en modo lectura
                                 <>
                                     <img 
                                         src={convertedImageUrl}
@@ -421,6 +498,41 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                                 </div>
                             </div>
 
+                            {/* NUEVO: Sección de Documentos en modo edición */}
+                            <div className="player-form-section">
+                                <h4 className="player-section-title">📁 Documentos</h4>
+                                <div className="player-documents-edit">
+                                    <div className="player-document-upload">
+                                        <FileUpload
+                                            type="documento_pdf"
+                                            label="Documento de Identidad (PDF)"
+                                            accept=".pdf,application/pdf"
+                                            maxSize="10"
+                                            onFileSelect={handleFileSelect}
+                                            currentFile={localFiles.documento_pdf}
+                                            currentUrl={player.documento_pdf_url || null}
+                                            required={false}
+                                        />
+                                    </div>
+                                    <div className="player-document-upload">
+                                        <FileUpload
+                                            type="registro_civil"
+                                            label="Registro Civil (PDF)"
+                                            accept=".pdf,application/pdf"
+                                            maxSize="10"
+                                            onFileSelect={handleFileSelect}
+                                            currentFile={localFiles.registro_civil}
+                                            currentUrl={player.registro_civil_url || null}
+                                            required={false}
+                                        />
+                                    </div>
+                                    <div className="player-documents-note">
+                                        <p>⚠️ <strong>Nota:</strong> Solo selecciona archivos si deseas reemplazar los existentes.</p>
+                                        <p>Dejar en blanco mantendrá los documentos actuales.</p>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="player-form-section">
                                 <h4 className="player-section-title">Ubicación</h4>
                                 <div className="player-form-row">
@@ -478,7 +590,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                             </div>
 
                             <div className="player-form-section">
-                                <h4 className="player-section-title">Información Médica</h4>
+                                <h4 className="player-section-title">🏥 Información Médica</h4>
                                 <div className="player-form-row">
                                     <div className="player-form-group">
                                         <label className="player-form-label">EPS</label>
@@ -545,33 +657,35 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                         </div>
                     )}
 
-                    {/* Documentos */}
-                    <div className="player-documents-section">
-                        <h4 className="player-section-title">📁 Documentos</h4>
-                        <div className="player-document-buttons">
-                            {player.documento_pdf_url && (
-                                <button
-                                    className="player-doc-btn"
-                                    onClick={() => handleDocumentOpen(player.documento_pdf_url!, 'Documento de Identidad')}
-                                >
-                                    <span className="player-doc-icon">📄</span>
-                                    <span className="player-doc-text">Ver Documento de Identidad</span>
-                                </button>
-                            )}
-                            {player.registro_civil_url && (
-                                <button
-                                    className="player-doc-btn"
-                                    onClick={() => handleDocumentOpen(player.registro_civil_url!, 'Registro Civil')}
-                                >
-                                    <span className="player-doc-icon">📋</span>
-                                    <span className="player-doc-text">Ver Registro Civil</span>
-                                </button>
-                            )}
-                            {!player.documento_pdf_url && !player.registro_civil_url && (
-                                <p className="player-no-docs">No hay documentos disponibles</p>
-                            )}
+                    {/* Documentos (solo lectura cuando no está editando) */}
+                    {!isEditing && (
+                        <div className="player-documents-section">
+                            <h4 className="player-section-title">📁 Documentos</h4>
+                            <div className="player-document-buttons">
+                                {player.documento_pdf_url && (
+                                    <button
+                                        className="player-doc-btn"
+                                        onClick={() => handleDocumentOpen(player.documento_pdf_url!, 'Documento de Identidad')}
+                                    >
+                                        <span className="player-doc-icon">📄</span>
+                                        <span className="player-doc-text">Ver Documento de Identidad</span>
+                                    </button>
+                                )}
+                                {player.registro_civil_url && (
+                                    <button
+                                        className="player-doc-btn"
+                                        onClick={() => handleDocumentOpen(player.registro_civil_url!, 'Registro Civil')}
+                                    >
+                                        <span className="player-doc-icon">📋</span>
+                                        <span className="player-doc-text">Ver Registro Civil</span>
+                                    </button>
+                                )}
+                                {!player.documento_pdf_url && !player.registro_civil_url && (
+                                    <p className="player-no-docs">No hay documentos disponibles</p>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <div className="player-modal-actions">
@@ -583,7 +697,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                             <button className="player-action-btn player-print-btn" onClick={onPrint}>
                                 🖨️ Imprimir
                             </button>
-                            {/* NUEVO BOTÓN: Generar Paz y Salvo */}
                             <button 
                                 className="player-action-btn player-peace-safe-btn" 
                                 onClick={() => setShowPeaceAndSafeModal(true)}
@@ -606,7 +719,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                         <>
                             <button 
                                 className="player-action-btn player-save-btn" 
-                                onClick={onSave}
+                                onClick={handleSaveWithFiles}
                                 disabled={isSaving}
                             >
                                 {isSaving ? (
@@ -615,7 +728,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                                         Guardando...
                                     </>
                                 ) : (
-                                    '💾 Guardar'
+                                    '💾 Guardar Cambios'
                                 )}
                             </button>
                             <button 

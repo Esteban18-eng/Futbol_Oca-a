@@ -1,13 +1,13 @@
-// useFileUpload.ts
+// src/hooks/useFileUpload.ts - VERSIÓN CORREGIDA
 import { useState } from 'react';
 import { PlayerFiles } from '../../../../services/supabaseClient';
 import { 
   uploadProfilePhoto, 
   uploadDocumentPDF, 
-  uploadRegistroCivilPDF 
+  uploadRegistroCivilPDF,
+  updatePlayerFileUrls // AHORA SÍ ESTÁ EXPORTADA
 } from '../../../../services/supabaseClient';
 
-// Define un tipo para el progreso de upload
 export type UploadProgress = {
   [key in keyof PlayerFiles]: number;
 };
@@ -22,7 +22,6 @@ export const useFileUpload = () => {
   const [fileErrors, setFileErrors] = useState<{[key in keyof PlayerFiles]?: string} & {general?: string}>({});
   const [isUploading, setIsUploading] = useState(false);
   
-  // Estado inicial con valores numéricos garantizados
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
     foto_perfil: 0,
     documento_pdf: 0,
@@ -41,7 +40,6 @@ export const useFileUpload = () => {
       [fileType]: file
     }));
 
-    // Limpiar error específico si se selecciona un archivo
     if (file && fileErrors[fileType]) {
       setFileErrors(prev => ({
         ...prev,
@@ -50,20 +48,21 @@ export const useFileUpload = () => {
     }
   };
 
-  const validateFiles = (): boolean => {
+  const validateFiles = (requiredFields: (keyof PlayerFiles)[] = []): boolean => {
     const errors: {[key in keyof PlayerFiles]?: string} & {general?: string} = {};
 
-    // Validar que al menos la foto de perfil esté presente
-    if (!files.foto_perfil) {
-      errors.foto_perfil = 'La foto de perfil es obligatoria';
-    }
+    requiredFields.forEach(field => {
+      if (!files[field]) {
+        errors[field] = `El ${field.replace('_', ' ')} es obligatorio`;
+      }
+    });
 
     setFileErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const uploadFiles = async (documento: string): Promise<{[key in keyof PlayerFiles]?: string} | null> => {
-    if (!validateFiles()) {
+  const uploadFiles = async (documento: string, requiredFields: (keyof PlayerFiles)[] = []): Promise<{[key in keyof PlayerFiles]?: string} | null> => {
+    if (!validateFiles(requiredFields)) {
       return null;
     }
 
@@ -75,10 +74,8 @@ export const useFileUpload = () => {
         const key = fileType as keyof PlayerFiles;
         
         if (file) {
-          // Resetear progreso para este archivo
           setUploadProgress(prev => ({ ...prev, [key]: 0 }));
           
-          // Lógica real de upload a Supabase Storage
           let uploadResult;
           
           switch (key) {
@@ -95,7 +92,6 @@ export const useFileUpload = () => {
           
           if (uploadResult && uploadResult.success) {
             results[key] = uploadResult.url!;
-            // Completar progreso
             setUploadProgress(prev => ({ ...prev, [key]: 100 }));
           } else {
             setFileErrors({
@@ -114,7 +110,76 @@ export const useFileUpload = () => {
       return null;
     } finally {
       setIsUploading(false);
-      // Resetear progresos después de un breve delay
+      setTimeout(() => {
+        setUploadProgress({
+          foto_perfil: 0,
+          documento_pdf: 0,
+          registro_civil: 0
+        });
+      }, 1000);
+    }
+  };
+
+  // FUNCIÓN CORREGIDA: Subir archivos durante edición
+  const uploadFilesForEdit = async (
+    playerId: string,
+    documento: string, 
+    filesToUpload: Partial<PlayerFiles>
+  ): Promise<{[key in keyof PlayerFiles]?: string} | null> => {
+    setIsUploading(true);
+    const results: {[key in keyof PlayerFiles]?: string} = {};
+
+    try {
+      for (const [fileType, file] of Object.entries(filesToUpload)) {
+        const key = fileType as keyof PlayerFiles;
+        
+        if (file) {
+          setUploadProgress(prev => ({ ...prev, [key]: 0 }));
+          
+          let uploadResult;
+          
+          switch (key) {
+            case 'foto_perfil':
+              uploadResult = await uploadProfilePhoto(file, documento);
+              break;
+            case 'documento_pdf':
+              uploadResult = await uploadDocumentPDF(file, documento);
+              break;
+            case 'registro_civil':
+              uploadResult = await uploadRegistroCivilPDF(file, documento);
+              break;
+          }
+          
+          if (uploadResult && uploadResult.success) {
+            results[key] = uploadResult.url!;
+            
+            // Actualizar la URL en la base de datos
+            const updateResult = await updatePlayerFileUrls(playerId, {
+              [`${key}_url`]: uploadResult.url!
+            });
+            
+            if (!updateResult.success) {
+              throw new Error(`Error actualizando ${key}: ${updateResult.error}`);
+            }
+            
+            setUploadProgress(prev => ({ ...prev, [key]: 100 }));
+          } else {
+            setFileErrors({
+              general: `Error subiendo ${key}: ${uploadResult?.error || 'Error desconocido'}`
+            });
+            return null;
+          }
+        }
+      }
+
+      return results;
+    } catch (error: any) {
+      setFileErrors({
+        general: `Error subiendo archivos: ${error.message || 'Error desconocido'}`
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
       setTimeout(() => {
         setUploadProgress({
           foto_perfil: 0,
@@ -158,6 +223,7 @@ export const useFileUpload = () => {
     documentViewer,
     handleFileSelect,
     uploadFiles,
+    uploadFilesForEdit,
     resetFiles,
     openDocument,
     closeDocument
