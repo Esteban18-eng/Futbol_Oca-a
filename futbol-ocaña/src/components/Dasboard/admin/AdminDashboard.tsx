@@ -626,45 +626,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                 </div>
 
                 {/* Información adicional para admin */}
-                <div className="admin-info-section mt-4">
-                  <div className="row">
-                    <div className="col-md-6">
-                      <div className="card">
-                        <div className="card-body">
-                          <h5 className="card-title">🎯 Funciones del Administrador</h5>
-                          <ul className="list-unstyled">
-                            <li>✅ Ver todos los jugadores del sistema</li>
-                            <li>✅ Gestionar escuelas y categorías</li>
-                            <li>✅ Crear nuevos administradores</li>
-                            <li>✅ Crear y asignar entrenadores</li>
-                            <li>✅ Ver estadísticas generales</li>
-                            <li>✅ Gestionar documentos de jugadores</li>
-                            <li>✅ Editar escuela de jugadores</li>
-                            <li>✅ Generar Paz y Salvo (PDF)</li>
-                            <li>✅ Eliminar jugadores</li>
-                            <li>❌ <strong>No puede</strong> agregar jugadores directamente</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="card">
-                        <div className="card-body">
-                          <h5 className="card-title">📋 Flujo de Trabajo</h5>
-                          <ol>
-                            <li>Crear escuelas 🏫</li>
-                            <li>Crear entrenadores 👨‍🏫</li>
-                            <li>Los entrenadores agregan jugadores 👥</li>
-                            <li>Supervisar todo el sistema 👁️</li>
-                            <li>Gestionar documentos 📁</li>
-                            <li>Editar escuelas de jugadores ✏️</li>
-                            <li>Generar certificados 📄</li>
-                          </ol>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

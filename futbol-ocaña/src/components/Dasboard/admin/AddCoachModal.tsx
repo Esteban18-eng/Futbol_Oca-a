@@ -205,12 +205,6 @@ const AddCoachModal: React.FC<AddCoachModalProps> = ({
               </div>
             </div>
             
-            <div className="alert alert-info">
-              <small>
-                <strong>Nota:</strong> El entrenador recibirá un email para confirmar su cuenta y podrá iniciar sesión con las credenciales proporcionadas.
-              </small>
-            </div>
-            
             <div className="modal-actions">
               <button
                 type="button"

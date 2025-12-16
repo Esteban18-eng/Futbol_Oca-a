@@ -331,15 +331,6 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
             </div>
 
             {/* Información de administrador */}
-            <div className="admin-info-notice">
-              <div className="admin-notice-content">
-                <span className="admin-notice-icon">👁️</span>
-                <div className="admin-notice-text">
-                  <strong>Modo de solo lectura:</strong> Como administrador, puedes ver toda la información del jugador pero no editarla. 
-                  Los entrenadores son responsables de gestionar los datos de sus jugadores.
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="player-modal-actions">
