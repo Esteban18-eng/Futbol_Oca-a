@@ -21,7 +21,7 @@ export interface PlayerModalProps {
     editSelectedDepartamentoId: string;
     onClose: () => void;
     onEdit: () => void;
-    onSave: () => void;
+    onSave: (files?: Partial<PlayerFiles>) => void;
     onCancelEdit: () => void;
     onDelete: (playerId: string) => void;
     onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;

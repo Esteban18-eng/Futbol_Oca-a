@@ -148,39 +148,52 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
     };
 
     // NUEVO: Función para preparar datos con archivos
-    const prepareSaveData = () => {
-        const updatedPlayer = { ...player };
-        const formData = new FormData();
-        let hasFileChanges = false;
+const prepareSaveData = () => {
+    const formData = new FormData();
+    let hasFileChanges = false;
 
-        // Agregar archivos al FormData si existen
-        Object.entries(localFiles).forEach(([key, file]) => {
-            if (file) {
-                formData.append(key, file);
-                hasFileChanges = true;
-            }
-        });
+    // Agregar archivos al FormData si existen
+    Object.entries(localFiles).forEach(([key, file]) => {
+        if (file) {
+            formData.append(key, file);
+            hasFileChanges = true;
+        }
+    });
 
-        return {
-            playerData: updatedPlayer,
-            formData: hasFileChanges ? formData : null,
-            fileChanges: localFiles
-        };
+    return {
+        playerData: { ...player },
+        formData: hasFileChanges ? formData : null,
+        fileChanges: localFiles
     };
+};
 
     // NUEVO: Función para manejar guardado con archivos
-    const handleSaveWithFiles = () => {
-        const { /*playerData,*/ formData, fileChanges } = prepareSaveData();
-        
-        // Primero actualizar datos del jugador
-        // Luego subir archivos si existen
-        if (formData) {
-            console.log('📤 Guardando jugador con archivos:', fileChanges);
+    const handleSaveWithFiles = async () => {
+    const { fileChanges } = prepareSaveData();
+    
+    console.log('📤 Guardando jugador con cambios:', {
+        datos: hasChanges(),
+        archivos: Object.keys(fileChanges).filter(key => fileChanges[key as keyof PlayerFiles])
+    });
+    
+    // Filtrar solo archivos que tienen cambios
+    const filesToUpdate = Object.keys(fileChanges).reduce((acc, key) => {
+        const fileType = key as keyof PlayerFiles;
+        if (fileChanges[fileType]) {
+            acc[fileType] = fileChanges[fileType];
         }
-        
-        // Llamar al onSave original
+        return acc;
+    }, {} as Partial<PlayerFiles>);
+    
+    // Si hay archivos para actualizar, pasarlos a onSave
+    if (Object.keys(filesToUpdate).length > 0) {
+        console.log('📁 Archivos a actualizar:', filesToUpdate);
+        onSave(filesToUpdate);
+    } else {
+        console.log('ℹ️ No hay cambios en archivos');
         onSave();
-    };
+    }
+};
 
     const calculateAge = (birthDate: string) => {
         const today = new Date();

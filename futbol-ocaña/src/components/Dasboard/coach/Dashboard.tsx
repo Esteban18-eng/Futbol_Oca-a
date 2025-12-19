@@ -20,7 +20,12 @@ import {
   getUserProfile,
   updateJugador,
   deleteJugador,
-  createJugador
+  createJugador,
+  uploadProfilePhoto,
+  uploadDocumentPDF,
+  uploadRegistroCivilPDF,
+  /*updatePlayerFileUrls,*/
+  PlayerFiles
 } from '../../../services/supabaseClient';
 import CoachHeader from './components/CoachHeader';
 import CoachSidebar from './components/CoachSidebar';
@@ -104,8 +109,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     documentViewer, 
     openDocument, 
     closeDocument,
-    uploadProgress,
-    uploadFilesForEdit
+    uploadProgress
   } = useFileUpload();
 
   // Estado inicial del nuevo jugador
@@ -578,8 +582,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     }
   }, [loadEditDepartamentosByPais, loadEditCiudadesByDepartamento, resetFiles]);
 
-  // FUNCIÓN PARA ACTUALIZAR JUGADOR CON ARCHIVOS
-  const handleUpdatePlayerWithFiles = useCallback(async () => {
+  // FUNCIÓN PARA ACTUALIZAR JUGADOR CON ARCHIVOS (MODIFICADA)
+  const handleUpdatePlayerWithFiles = useCallback(async (filesToUpdate?: Partial<PlayerFiles>) => {
     if (!selectedPlayer || !originalPlayer) return;
 
     try {
@@ -588,38 +592,59 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setError(null);
 
       // Preparar archivos para subir (si hay)
-      const filesToUpload = {
+      const filesToUpload = filesToUpdate || {
         foto_perfil: files.foto_perfil,
         documento_pdf: files.documento_pdf,
         registro_civil: files.registro_civil
       };
 
-      let uploadedFileUrls: {[key: string]: string} = {};
-      
+      const fileUrls: {
+        foto_perfil_url?: string;
+        documento_pdf_url?: string;
+        registro_civil_url?: string;
+      } = {};
+
       // Subir archivos si hay cambios
-      const hasFileChanges = Object.values(filesToUpload).some(file => file !== null);
+      const hasFileChanges = filesToUpdate ? 
+        Object.values(filesToUpdate).some(file => file !== null) :
+        Object.values(files).some(file => file !== null);
+
       if (hasFileChanges && selectedPlayer) {
         setProcessingMessage('Subiendo archivos...');
         
-        const uploadResult = await uploadFilesForEdit(
-          selectedPlayer.id,
-          selectedPlayer.documento, 
-          filesToUpload
-        );
-        
-        if (!uploadResult) {
-          setError('Error subiendo archivos');
-          setIsSaving(false);
-          setProcessingMessage('');
-          return;
+        // Subir cada archivo individualmente
+        for (const [fileType, file] of Object.entries(filesToUpload)) {
+          const key = fileType as keyof PlayerFiles;
+          
+          if (file) {
+            let uploadResult;
+            
+            switch (key) {
+              case 'foto_perfil':
+                uploadResult = await uploadProfilePhoto(file, selectedPlayer.documento);
+                break;
+              case 'documento_pdf':
+                uploadResult = await uploadDocumentPDF(file, selectedPlayer.documento);
+                break;
+              case 'registro_civil':
+                uploadResult = await uploadRegistroCivilPDF(file, selectedPlayer.documento);
+                break;
+            }
+            
+            if (uploadResult?.success && uploadResult.url) {
+              // Guardar URL para actualización
+              fileUrls[`${key}_url` as keyof typeof fileUrls] = uploadResult.url;
+              
+              // Actualizar la URL en el estado del jugador
+              setSelectedPlayer(prev => prev ? {
+                ...prev,
+                [`${key}_url`]: uploadResult.url
+              } : null);
+            } else {
+              throw new Error(`Error subiendo ${key}: ${uploadResult?.error || 'Error desconocido'}`);
+            }
+          }
         }
-        
-        // Convertir las URLs
-        uploadedFileUrls = {
-          foto_perfil_url: uploadResult.foto_perfil || selectedPlayer.foto_perfil_url || '',
-          documento_pdf_url: uploadResult.documento_pdf || selectedPlayer.documento_pdf_url || '',
-          registro_civil_url: uploadResult.registro_civil || selectedPlayer.registro_civil_url || ''
-        };
       }
 
       // Actualizar datos básicos del jugador
@@ -635,7 +660,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         eps: selectedPlayer.eps,
         tipo_eps: selectedPlayer.tipo_eps,
         // Incluir URLs de archivos si se subieron
-        ...uploadedFileUrls
+        ...fileUrls
       };
 
       const result = await updateJugador(selectedPlayer.id, updates);
@@ -655,7 +680,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setIsEditing(false);
       resetFiles();
       
-      setProcessingMessage('Jugador actualizado exitosamente');
+      setProcessingMessage('✅ Jugador actualizado exitosamente');
       
     } catch (err: any) {
       console.error('Error updating player with files:', err);
@@ -666,7 +691,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         setProcessingMessage('');
       }, 1000);
     }
-  }, [selectedPlayer, originalPlayer, files, uploadFilesForEdit, reloadPlayers, resetFiles]);
+  }, [selectedPlayer, originalPlayer, files, reloadPlayers, resetFiles]);
 
   // Función para cancelar edición
   const handleCancelEdit = useCallback(() => {
@@ -1554,7 +1579,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
           editSelectedDepartamentoId={editSelectedDepartamentoId}
           onClose={closePlayerModal}
           onEdit={() => setIsEditing(true)}
-          onSave={handleUpdatePlayerWithFiles}
+          onSave={handleUpdatePlayerWithFiles} // Esta función ahora acepta archivos
           onCancelEdit={handleCancelEdit}
           onDelete={handleDeletePlayer}
           onInputChange={handleEditInputChange}
