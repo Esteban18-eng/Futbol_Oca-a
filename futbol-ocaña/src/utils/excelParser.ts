@@ -176,6 +176,9 @@ export const excelParser = {
     }
     
     const mapeoCategorias: {[key: number]: string} = {
+      2023: 'sub 2 (2021)',
+      2022: 'sub 3 (2021)',
+      2021: 'sub 4 (2021)',
       2020: 'Sub 5 (2020)',
       2019: 'Sub 6 (2019)',
       2018: 'Sub 7 (2018)',
