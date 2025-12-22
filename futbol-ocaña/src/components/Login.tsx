@@ -82,8 +82,14 @@ const Login: React.FC = () => {
           return;
         }
 
-        // Éxito - App.tsx manejará la redirección automáticamente
-        console.log('Login exitoso');
+        // Éxito - Redirección manual para asegurar
+        console.log('Login exitoso, redirigiendo...');
+        
+        // Esperar un momento para que el estado se actualice
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Redirección manual basada en el rol
+        window.location.href = profile.rol === 'admin' ? '/admin-dashboard' : '/coach-dashboard';
       }
     } catch (error: any) {
       setError(`Error de conexión: ${error.message}`);
@@ -179,6 +185,8 @@ const Login: React.FC = () => {
           Las cuentas solo pueden ser creadas por<br />
           administradores
         </div>
+
+        
       </div>
     </div>
   );

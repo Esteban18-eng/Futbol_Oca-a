@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import Dashboard from './components/Dasboard/coach/Dashboard';
@@ -22,136 +22,316 @@ function App() {
   const [user, setUser] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  
+  // Refs para control de montaje y cleanup
+  const isMounted = useRef(true);
+  const authSubscriptionRef = useRef<any>(null);
+  const initializationTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // ✅ Función optimizada para verificar sesión
+  // ✅ CLEANUP COMPLETO AL DESMONTAR
+  useEffect(() => {
+    isMounted.current = true;
+    console.log('🚀 App montada');
+    
+    return () => {
+      console.log('🧹 App DESMONTANDO - Limpiando todo');
+      isMounted.current = false;
+      
+      // Cancelar subscription de auth
+      if (authSubscriptionRef.current) {
+        try {
+          authSubscriptionRef.current.unsubscribe();
+          console.log('🔌 Auth subscription limpiada');
+        } catch (error) {
+          console.error('Error limpiando auth subscription:', error);
+        }
+        authSubscriptionRef.current = null;
+      }
+      
+      // Limpiar timeouts
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+      }
+      
+      // Limpiar estado para prevenir memory leaks
+      setUser(null);
+      setLoading(false);
+      setAuthChecked(false);
+      
+      // Forzar garbage collection en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        if (window.gc) {
+          try {
+            window.gc();
+            console.log('🗑️ Forzado garbage collection en App');
+          } catch (e) {
+            console.log('GC no disponible en App');
+          }
+        }
+      }
+    };
+  }, []);
+
+  // ✅ Función optimizada para verificar sesión CON TIMEOUT
   const checkSession = useCallback(async () => {
+    if (!isMounted.current) return null;
+    
     try {
       console.log('🔍 Verificando sesión...');
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      // Timeout de seguridad
+      const timeoutPromise = new Promise<null>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout verificando sesión')), 8000)
+      );
+      
+      // Obtener sesión con timeout
+      const sessionPromise = supabase.auth.getSession();
+      const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
+      
+      const { data: { session }, error: sessionError } = result;
       
       if (sessionError) {
-        console.error('Error obteniendo sesión:', sessionError);
-        setUser(null);
-        return;
+        console.error('❌ Error obteniendo sesión:', sessionError);
+        return null;
       }
 
-      if (session?.user) {
-        console.log('👤 Usuario encontrado en sesión:', session.user.email);
+      if (session?.user && isMounted.current) {
+        console.log('👤 Usuario encontrado:', session.user.email);
         
-        // Obtener perfil del usuario con timeout
+        // Obtener perfil con timeout reducido
         const profilePromise = supabase
           .from('usuarios')
           .select('*')
           .eq('id', session.user.id)
+          .eq('activo', true)
           .single();
 
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout obteniendo perfil')), 10000)
+        const profileTimeout = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout obteniendo perfil')), 5000)
         );
 
         try {
-          const { data: profile, error: profileError } = await Promise.race([profilePromise, timeoutPromise]) as any;
+          const profileResult = await Promise.race([profilePromise, profileTimeout]) as any;
+          const { data: profile, error: profileError } = profileResult;
           
           if (profileError) {
-            console.error('Error obteniendo perfil:', profileError);
-            setUser(null);
-          } else if (profile) {
-            console.log('✅ Perfil cargado:', profile.nombre);
-            setUser(profile as Usuario);
-          } else {
-            setUser(null);
+            console.error('❌ Error obteniendo perfil:', profileError);
+            return null;
           }
-        } catch (timeoutError) {
-          console.error('Timeout obteniendo perfil:', timeoutError);
-          setUser(null);
+          
+          if (profile && isMounted.current) {
+            console.log('✅ Perfil cargado:', profile.nombre);
+            return profile as Usuario;
+          }
+        } catch (profileError: any) {
+          console.error('❌ Error en promise race de perfil:', profileError.message);
+          return null;
         }
       } else {
-        console.log('❌ No hay sesión activa');
-        setUser(null);
+        console.log('ℹ️ No hay sesión activa');
       }
-    } catch (error) {
-      console.error('💥 Error crítico en checkSession:', error);
-      setUser(null);
-    } finally {
-      setLoading(false);
-      setAuthChecked(true);
+      
+      return null;
+    } catch (error: any) {
+      console.error('💥 Error crítico en checkSession:', error.message);
+      return null;
     }
   }, []);
 
+  // ✅ INICIALIZACIÓN SEGURA
   useEffect(() => {
+    if (!isMounted.current) return;
+    
     let mounted = true;
-
+    const abortController = new AbortController();
+    
     const initializeAuth = async () => {
-      if (!mounted) return;
-
-      await checkSession();
-
-      // ✅ Suscripción optimizada a cambios de auth
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (!mounted) return;
-
-          console.log('🔄 Cambio de estado de auth:', event);
-          
-          switch (event) {
-            case 'SIGNED_IN':
-              if (session?.user) {
-                await checkSession();
-              }
-              break;
-              
-            case 'SIGNED_OUT':
-              setUser(null);
-              setLoading(false);
-              break;
-              
-            case 'TOKEN_REFRESHED':
-              // No hacer nada, ya está autenticado
-              break;
-              
-            default:
-              console.log('Evento de auth no manejado:', event);
+      if (!mounted || !isMounted.current) return;
+      
+      try {
+        // Timeout de inicialización
+        initializationTimeoutRef.current = setTimeout(() => {
+          if (mounted && isMounted.current) {
+            console.warn('⚠️ Timeout en inicialización de auth');
+            setLoading(false);
+            setAuthChecked(true);
           }
+        }, 15000);
+        
+        // Verificar sesión inicial
+        const userData = await checkSession();
+        
+        if (mounted && isMounted.current) {
+          if (userData) {
+            setUser(userData);
+          } else {
+            setUser(null);
+          }
+          
+          setLoading(false);
+          setAuthChecked(true);
+          clearTimeout(initializationTimeoutRef.current);
         }
-      );
-
-      return () => {
-        subscription.unsubscribe();
-      };
+        
+        // ✅ SUSCRIPCIÓN SEGURA A CAMBIOS DE AUTH
+        if (mounted && isMounted.current && !authSubscriptionRef.current) {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+              if (!mounted || !isMounted.current || abortController.signal.aborted) return;
+              
+              console.log('🔄 Cambio de estado de auth:', event);
+              
+              // Usar debounce para evitar múltiples updates rápidos
+              if (authSubscriptionRef.current?.debounceTimeout) {
+                clearTimeout(authSubscriptionRef.current.debounceTimeout);
+              }
+              
+              authSubscriptionRef.current.debounceTimeout = setTimeout(async () => {
+                if (!mounted || !isMounted.current || abortController.signal.aborted) return;
+                
+                switch (event) {
+                  case 'SIGNED_IN':
+                    console.log('🔑 Usuario firmó sesión');
+                    if (session?.user) {
+                      const userData = await checkSession();
+                      if (mounted && isMounted.current && userData) {
+                        setUser(userData);
+                      }
+                    }
+                    break;
+                    
+                  case 'SIGNED_OUT':
+                    console.log('🚪 Usuario cerró sesión');
+                    if (mounted && isMounted.current) {
+                      setUser(null);
+                    }
+                    break;
+                    
+                  case 'USER_UPDATED':
+                    // Actualizar datos del usuario
+                    if (session?.user) {
+                      const userData = await checkSession();
+                      if (mounted && isMounted.current && userData) {
+                        setUser(userData);
+                      }
+                    }
+                    break;
+                    
+                  case 'TOKEN_REFRESHED':
+                    // No hacer nada explícitamente
+                    break;
+                    
+                  default:
+                    console.log('📝 Evento de auth no manejado:', event);
+                }
+              }, 300); // Debounce de 300ms
+            }
+          );
+          
+          authSubscriptionRef.current = {
+            unsubscribe: subscription.unsubscribe,
+            debounceTimeout: null as NodeJS.Timeout | null
+          };
+        }
+        
+      } catch (error: any) {
+        console.error('💥 Error en initializeAuth:', error.message);
+        if (mounted && isMounted.current) {
+          setLoading(false);
+          setAuthChecked(true);
+          setUser(null);
+        }
+      }
     };
 
     initializeAuth();
-
+    
     return () => {
       mounted = false;
+      abortController.abort();
+      
+      // Limpiar debounce timeout
+      if (authSubscriptionRef.current?.debounceTimeout) {
+        clearTimeout(authSubscriptionRef.current.debounceTimeout);
+      }
+      
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+      }
     };
   }, [checkSession]);
 
   const handleLogout = useCallback(async () => {
+    if (!isMounted.current) return;
+    
     try {
       console.log('🚪 Cerrando sesión...');
+      
+      // Limpiar subscription temporalmente
+      if (authSubscriptionRef.current) {
+        authSubscriptionRef.current.unsubscribe();
+        authSubscriptionRef.current = null;
+      }
+      
       await supabase.auth.signOut();
-      setUser(null);
-    } catch (error) {
-      console.error('Error durante logout:', error);
+      
+      if (isMounted.current) {
+        setUser(null);
+        console.log('✅ Sesión cerrada exitosamente');
+      }
+      
+      // Re-crear subscription después de logout
+      setTimeout(() => {
+        if (isMounted.current && !authSubscriptionRef.current) {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {});
+          authSubscriptionRef.current = {
+            unsubscribe: subscription.unsubscribe,
+            debounceTimeout: null
+          };
+        }
+      }, 1000);
+      
+    } catch (error: any) {
+      console.error('❌ Error durante logout:', error.message);
     }
   }, []);
 
-  // ✅ Loading optimizado
+  // ✅ Loading optimizado CON TIMEOUT
   if (loading && !authChecked) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+      <div className="d-flex justify-content-center align-items-center" style={{ 
+        height: '100vh',
+        backgroundColor: '#f8f9fa'
+      }}>
         <div className="text-center">
-          <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+          <div className="spinner-border text-primary" style={{ 
+            width: '4rem', 
+            height: '4rem',
+            borderWidth: '0.5rem'
+          }} role="status">
             <span className="visually-hidden">Cargando...</span>
           </div>
-          <p className="mt-3 text-muted">Inicializando aplicación...</p>
+          <p className="mt-4 text-muted" style={{ fontSize: '1.1rem' }}>
+            Inicializando aplicación...
+          </p>
+          <div className="progress mt-3" style={{ width: '200px', margin: '0 auto' }}>
+            <div 
+              className="progress-bar progress-bar-striped progress-bar-animated" 
+              style={{ width: '75%' }}
+            ></div>
+          </div>
         </div>
       </div>
     );
   }
 
-  console.log('🎯 Estado actual - User:', user ? `${user.nombre} (${user.rol})` : 'null', 'Loading:', loading);
+  // ✅ DEBUG: Mostrar estado actual (solo desarrollo)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🎯 Estado App - User:', user ? `${user.nombre} (${user.rol})` : 'null', 
+                'Loading:', loading, 
+                'AuthChecked:', authChecked,
+                'Mounted:', isMounted.current);
+  }
 
   return (
     <Router>
@@ -166,6 +346,7 @@ function App() {
                 <Navigate 
                   to={user.rol === 'admin' ? '/admin-dashboard' : '/coach-dashboard'} 
                   replace 
+                  state={{ from: 'login' }}
                 />
               )
             } 
@@ -178,10 +359,10 @@ function App() {
                 user.rol === 'entrenador' ? (
                   <Dashboard onLogout={handleLogout} currentUser={user} />
                 ) : (
-                  <Navigate to="/admin-dashboard" replace />
+                  <Navigate to="/admin-dashboard" replace state={{ from: 'coach-redirect' }} />
                 )
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/login" replace state={{ from: 'coach-auth' }} />
               )
             } 
           />
@@ -193,10 +374,10 @@ function App() {
                 user.rol === 'admin' ? (
                   <AdminDashboard onLogout={handleLogout} currentUser={user} />
                 ) : (
-                  <Navigate to="/coach-dashboard" replace />
+                  <Navigate to="/coach-dashboard" replace state={{ from: 'admin-redirect' }} />
                 )
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/login" replace state={{ from: 'admin-auth' }} />
               )
             } 
           />
@@ -207,14 +388,34 @@ function App() {
               <Navigate 
                 to={user ? (user.rol === 'admin' ? '/admin-dashboard' : '/coach-dashboard') : '/login'} 
                 replace 
+                state={{ from: 'root' }}
               />
             } 
           />
 
-          {/* Ruta de fallback */}
+          {/* Ruta de fallback con mensaje útil */}
           <Route 
             path="*" 
-            element={<Navigate to="/" replace />}
+            element={
+              <div style={{ 
+                height: '100vh', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                textAlign: 'center',
+                padding: '20px'
+              }}>
+                <h1 className="text-muted mb-4">404 - Página no encontrada</h1>
+                <p className="mb-4">La página que buscas no existe.</p>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => window.location.href = '/'}
+                >
+                  Volver al inicio
+                </button>
+              </div>
+            }
           />
         </Routes>
       </div>

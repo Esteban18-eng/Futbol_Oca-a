@@ -24,7 +24,6 @@ import {
   uploadProfilePhoto,
   uploadDocumentPDF,
   uploadRegistroCivilPDF,
-  /*updatePlayerFileUrls,*/
   PlayerFiles
 } from '../../../services/supabaseClient';
 import CoachHeader from './components/CoachHeader';
@@ -42,7 +41,73 @@ interface DashboardProps {
   currentUser: Usuario;
 }
 
+// Funciones de utilidad fuera del componente para evitar recreación
+const calculateAge = (birthDate: string): number => {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+const formatDate = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString('es-CO');
+};
+
+const formatDateForDocument = (dateString: string) => {
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day} / ${month} / ${year}`;
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
+  // Performance checkpoint
+  useEffect(() => {
+    console.log('Dashboard mounted');
+    
+    // Monitorear uso de memoria
+    if ('memory' in performance) {
+      const memory = (performance as any).memory;
+      console.log('Memory usage:', {
+        usedJSHeapSize: Math.round(memory.usedJSHeapSize / 1024 / 1024) + 'MB',
+        totalJSHeapSize: Math.round(memory.totalJSHeapSize / 1024 / 1024) + 'MB',
+        jsHeapSizeLimit: Math.round(memory.jsHeapSizeLimit / 1024 / 1024) + 'MB'
+      });
+    }
+    
+    // Detectar cambios de visibilidad
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log('Dashboard hidden - pausando procesos no críticos');
+      } else {
+        console.log('Dashboard visible - reanudando procesos');
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      console.log('Dashboard unmounting - cleaning up');
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Limpiar estados grandes
+      setPlayers([]);
+      setFilteredPlayers([]);
+      
+      // Forzar garbage collection (solo en desarrollo)
+      if (process.env.NODE_ENV === 'development') {
+        if (window.gc) {
+          window.gc();
+        }
+      }
+    };
+  }, []);
+
   // Estados principales
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDocument, setSelectedDocument] = useState('');
@@ -129,8 +194,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
 
   const [newPlayer, setNewPlayer] = useState<Partial<Jugador>>(initialPlayerState);
 
-  // FUNCIÓN PARA RECARGAR PLAYERS
+  // FUNCIÓN PARA RECARGAR PLAYERS (optimizada con abort controller)
   const reloadPlayers = useCallback(async () => {
+    const controller = new AbortController();
+    let isMounted = true;
+    
     try {
       let playersResult;
 
@@ -142,6 +210,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         throw new Error('No se pudo determinar la escuela del usuario');
       }
 
+      if (!isMounted) return;
+
       if (playersResult.error) {
         throw playersResult.error;
       }
@@ -151,13 +221,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setFilteredPlayers(playersData);
       
     } catch (err: any) {
-      console.error('Error reloading players:', err);
-      setError(err.message || 'Error recargando jugadores');
+      if (isMounted) {
+        console.error('Error reloading players:', err);
+        setError(err.message || 'Error recargando jugadores');
+      }
     }
+    
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, [currentUser.rol, currentUser.escuela_id]);
 
-  // EFECTO PRINCIPAL - SE EJECUTA UNA SOLA VEZ AL MONTAR
+  // EFECTO PRINCIPAL - CON CLEANUP COMPLETO
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
     const initializeData = async () => {
       try {
         setLoading(true);
@@ -169,6 +249,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
           getEscuelas(),
           getPaises()
         ]);
+
+        if (!isMounted) return;
 
         if (categoriasResult.error) throw categoriasResult.error;
         if (escuelasResult.error) throw escuelasResult.error;
@@ -182,71 +264,88 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
 
         // Configurar Colombia por defecto
         const colombia = paisesData.find(p => p.nombre === 'Colombia');
-        if (colombia) {
+        if (colombia && isMounted) {
           setSelectedPaisId(colombia.id);
           setNewPlayer(prev => ({ ...prev, pais: colombia.nombre }));
           
           // Cargar departamentos de Colombia
           const departamentosResult = await getDepartamentosByPais(colombia.id);
-          if (!departamentosResult.error) {
+          if (!departamentosResult.error && isMounted) {
             setDepartamentos(departamentosResult.data || []);
           }
         }
 
         // Cargar jugadores
-        await reloadPlayers();
+        if (isMounted) {
+          await reloadPlayers();
+        }
 
       } catch (err: any) {
-        console.error('Error loading initial data:', err);
-        setError(err.message || 'Error cargando datos iniciales');
+        if (isMounted) {
+          console.error('Error loading initial data:', err);
+          setError(err.message || 'Error cargando datos iniciales');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     initializeData();
+    
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [currentUser.rol, currentUser.escuela_id, reloadPlayers]);
 
-  // BÚSQUEDA AUTOMÁTICA POR DOCUMENTO
+  // BÚSQUEDA AUTOMÁTICA POR DOCUMENTO (con debounce y cleanup)
   useEffect(() => {
-    const handler = setTimeout(() => {
-      if (selectedDocument.trim().length > 0) {
-        handleAutoSearch();
-      } else {
-        setSearchResult(null);
+    let timeoutId: NodeJS.Timeout;
+    let isMounted = true;
+
+    const handleAutoSearch = () => {
+      if (!selectedDocument.trim() || !isMounted) {
+        if (isMounted) setSearchResult(null);
+        return;
       }
-    }, 500);
+
+      setIsSearching(true);
+      
+      // Buscar el jugador por documento
+      const player = players.find(p => p.documento === selectedDocument.trim());
+      
+      if (!isMounted) return;
+
+      if (player) {
+        setSearchResult({
+          found: true,
+          player: player,
+          message: 'Jugador encontrado'
+        });
+      } else {
+        setSearchResult({
+          found: false,
+          message: 'El documento no está registrado en el sistema'
+        });
+      }
+      
+      setIsSearching(false);
+    };
+
+    if (selectedDocument.trim().length > 0) {
+      timeoutId = setTimeout(handleAutoSearch, 500);
+    } else if (isMounted) {
+      setSearchResult(null);
+    }
 
     return () => {
-      clearTimeout(handler);
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
-  }, [selectedDocument]);
-
-  const handleAutoSearch = useCallback(() => {
-    if (!selectedDocument.trim()) {
-      setSearchResult(null);
-      return;
-    }
-
-    setIsSearching(true);
-    
-    // Buscar el jugador por documento
-    const player = players.find(p => p.documento === selectedDocument.trim());
-    
-    if (player) {
-      setSearchResult({
-        found: true,
-        player: player,
-        message: 'Jugador encontrado'
-      });
-    } else {
-      setSearchResult({
-        found: false,
-        message: 'El documento no está registrado en el sistema'
-      });
-    }
-    
-    setIsSearching(false);
   }, [selectedDocument, players]);
 
   // Filtrar jugadores
@@ -264,19 +363,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setFilteredPlayers(filtered);
   }, [searchTerm, players, selectedCategory]);
 
-  // Handlers para el Header
+  // Handlers para el Header (optimizados con useCallback)
   const handleToggleDarkMode = useCallback(() => {
-    setIsDarkMode(!isDarkMode);
-  }, [isDarkMode]);
+    setIsDarkMode(prev => !prev);
+  }, []);
 
   const handleToggleHamburgerMenu = useCallback(() => {
-    setShowHamburgerMenu(!showHamburgerMenu);
-  }, [showHamburgerMenu]);
+    setShowHamburgerMenu(prev => !prev);
+  }, []);
 
   const handleViewProfile = useCallback(async () => {
     setShowHamburgerMenu(false);
-    await loadUserProfile();
-    setShowProfileModal(true);
+    try {
+      const result = await getUserProfile();
+      if (result?.data) {
+        setUserProfile(result.data);
+        setShowProfileModal(true);
+      }
+    } catch (error) {
+      console.error('Error cargando perfil de usuario:', error);
+      setError('Error al cargar el perfil');
+    }
   }, []);
 
   const handleAddPlayer = useCallback(() => {
@@ -284,7 +391,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setShowAddModal(true);
   }, []);
 
-  // Handlers para el Sidebar
+  // Handlers para el Sidebar (optimizados)
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
   }, []);
@@ -300,8 +407,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   }, []);
 
   const handleToggleCategoryDropdown = useCallback(() => {
-    setShowCategoryDropdown(!showCategoryDropdown);
-  }, [showCategoryDropdown]);
+    setShowCategoryDropdown(prev => !prev);
+  }, []);
 
   const handleOpenExcelImport = useCallback(() => {
     setShowHamburgerMenu(false);
@@ -313,19 +420,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     reloadPlayers();
     setShowExcelImport(false);
   }, [reloadPlayers]);
-
-  // Función para cargar el perfil del usuario
-  const loadUserProfile = useCallback(async () => {
-    try {
-      const result = await getUserProfile();
-      if (result?.data) {
-        setUserProfile(result.data);
-      }
-    } catch (error) {
-      console.error('Error cargando perfil de usuario:', error);
-      setError('Error al cargar el perfil');
-    }
-  }, []);
 
   // Función para manejar cambios en inputs
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -364,10 +458,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     }
   }, [paises, departamentos]);
 
-  // Funciones de carga de ubicaciones
+  // Funciones de carga de ubicaciones (CORREGIDAS - sin return type conflict)
   const loadDepartamentosByPais = useCallback(async (paisId: string) => {
     try {
       const result = await getDepartamentosByPais(paisId);
+      
       if (result.error) throw result.error;
       
       const departamentosData = result.data || [];
@@ -385,6 +480,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   const loadCiudadesByDepartamento = useCallback(async (departamentoId: string) => {
     try {
       const result = await getCiudadesByDepartamento(departamentoId);
+      
       if (result.error) throw result.error;
       
       const ciudadesData = result.data || [];
@@ -397,10 +493,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     }
   }, []);
 
-  // Funciones de carga de ubicaciones para edición
+  // Funciones de carga de ubicaciones para edición (CORREGIDAS)
   const loadEditDepartamentosByPais = useCallback(async (paisId: string) => {
     try {
       const result = await getDepartamentosByPais(paisId);
+      
       if (result.error) throw result.error;
       
       const departamentosData = result.data || [];
@@ -416,6 +513,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   const loadEditCiudadesByDepartamento = useCallback(async (departamentoId: string) => {
     try {
       const result = await getCiudadesByDepartamento(departamentoId);
+      
       if (result.error) throw result.error;
       
       const ciudadesData = result.data || [];
@@ -437,9 +535,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setError(null);
   }, [initialPlayerState, resetFiles]);
 
-  // FUNCIÓN PARA AGREGAR JUGADOR CON ARCHIVOS
+  // FUNCIÓN PARA AGREGAR JUGADOR CON ARCHIVOS (optimizada)
   const handleAddPlayerSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    let isMounted = true;
     
     try {
       setIsProcessing(true);
@@ -463,7 +563,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       // Subir archivos
       const uploadResults = await uploadFiles(newPlayer.documento, ['foto_perfil']);
       
-      if (!uploadResults) {
+      if (!uploadResults || !isMounted) {
         return;
       }
 
@@ -486,6 +586,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
 
       const result = await createJugador(playerData);
       
+      if (!isMounted) return;
+      
       if (result.error) {
         const error = result.error as any;
         if (error.code === '23505') {
@@ -496,16 +598,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         return;
       }
 
-      await reloadPlayers();
-      setShowAddModal(false);
-      resetPlayerForm();
+      if (isMounted) {
+        await reloadPlayers();
+        setShowAddModal(false);
+        resetPlayerForm();
+      }
       
     } catch (err: any) {
-      console.error('Error adding player with files:', err);
-      setError(err.message || 'Error agregando jugador');
+      if (isMounted) {
+        console.error('Error adding player with files:', err);
+        setError(err.message || 'Error agregando jugador');
+      }
     } finally {
-      setIsProcessing(false);
-      setProcessingMessage('');
+      if (isMounted) {
+        setIsProcessing(false);
+        setProcessingMessage('');
+      }
     }
   }, [newPlayer, files, uploadFiles, reloadPlayers, resetPlayerForm]);
 
@@ -545,10 +653,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     }
   }, [selectedPlayer, editPaises, editDepartamentos, loadEditDepartamentosByPais, loadEditCiudadesByDepartamento]);
 
-  // Función para abrir modal del jugador
+  // Función para abrir modal del jugador (optimizada)
   const handlePlayerClickDetailed = useCallback(async (player: Jugador) => {
-    setSelectedPlayer({...player});
-    setOriginalPlayer({...player});
+    setSelectedPlayer(player);
+    setOriginalPlayer(player);
     setShowPlayerModal(true);
     setIsEditing(false);
     
@@ -556,42 +664,49 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     resetFiles();
     
     // Cargar países para edición
-    const paisesResult = await getPaises();
-    if (!paisesResult.error) {
-      setEditPaises(paisesResult.data || []);
+    try {
+      const paisesResult = await getPaises();
       
-      // Si el jugador tiene país, configurar ubicaciones
-      if (player.pais) {
-        const paisData = paisesResult.data?.find(p => p.nombre === player.pais);
-        if (paisData) {
-          setEditSelectedPaisId(paisData.id);
-          await loadEditDepartamentosByPais(paisData.id);
-          
-          if (player.departamento) {
-            const deptosResult = await getDepartamentosByPais(paisData.id);
-            if (!deptosResult.error) {
-              const deptoData = deptosResult.data?.find(d => d.nombre === player.departamento);
-              if (deptoData) {
-                setEditSelectedDepartamentoId(deptoData.id);
-                await loadEditCiudadesByDepartamento(deptoData.id);
+      if (!paisesResult.error) {
+        setEditPaises(paisesResult.data || []);
+        
+        // Si el jugador tiene país, configurar ubicaciones
+        if (player.pais) {
+          const paisData = paisesResult.data?.find(p => p.nombre === player.pais);
+          if (paisData) {
+            setEditSelectedPaisId(paisData.id);
+            await loadEditDepartamentosByPais(paisData.id);
+            
+            if (player.departamento) {
+              const deptosResult = await getDepartamentosByPais(paisData.id);
+              if (!deptosResult.error) {
+                const deptoData = deptosResult.data?.find(d => d.nombre === player.departamento);
+                if (deptoData) {
+                  setEditSelectedDepartamentoId(deptoData.id);
+                  await loadEditCiudadesByDepartamento(deptoData.id);
+                }
               }
             }
           }
         }
       }
+    } catch (error) {
+      console.error('Error loading edit locations:', error);
     }
   }, [loadEditDepartamentosByPais, loadEditCiudadesByDepartamento, resetFiles]);
 
-  // FUNCIÓN PARA ACTUALIZAR JUGADOR CON ARCHIVOS (MODIFICADA)
+  // FUNCIÓN PARA ACTUALIZAR JUGADOR CON ARCHIVOS (optimizada)
   const handleUpdatePlayerWithFiles = useCallback(async (filesToUpdate?: Partial<PlayerFiles>) => {
     if (!selectedPlayer || !originalPlayer) return;
+    
+    let isMounted = true;
 
     try {
       setIsSaving(true);
       setProcessingMessage('Actualizando jugador...');
       setError(null);
 
-      // Preparar archivos para subir (si hay)
+      // Preparar archivos para subir
       const filesToUpload = filesToUpdate || {
         foto_perfil: files.foto_perfil,
         documento_pdf: files.documento_pdf,
@@ -609,14 +724,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         Object.values(filesToUpdate).some(file => file !== null) :
         Object.values(files).some(file => file !== null);
 
-      if (hasFileChanges && selectedPlayer) {
+      if (hasFileChanges && selectedPlayer && isMounted) {
         setProcessingMessage('Subiendo archivos...');
         
         // Subir cada archivo individualmente
         for (const [fileType, file] of Object.entries(filesToUpload)) {
           const key = fileType as keyof PlayerFiles;
           
-          if (file) {
+          if (file && isMounted) {
             let uploadResult;
             
             switch (key) {
@@ -630,6 +745,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
                 uploadResult = await uploadRegistroCivilPDF(file, selectedPlayer.documento);
                 break;
             }
+            
+            if (!isMounted) break;
             
             if (uploadResult?.success && uploadResult.url) {
               // Guardar URL para actualización
@@ -647,6 +764,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         }
       }
 
+      if (!isMounted) return;
+
       // Actualizar datos básicos del jugador
       setProcessingMessage('Actualizando datos del jugador...');
       
@@ -659,11 +778,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         ciudad: selectedPlayer.ciudad,
         eps: selectedPlayer.eps,
         tipo_eps: selectedPlayer.tipo_eps,
-        // Incluir URLs de archivos si se subieron
         ...fileUrls
       };
 
       const result = await updateJugador(selectedPlayer.id, updates);
+      
+      if (!isMounted) return;
       
       if (result.error) throw result.error;
       
@@ -671,25 +791,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       await reloadPlayers();
       
       // Actualizar el jugador seleccionado con los nuevos datos
-      if (result.data) {
+      if (result.data && isMounted) {
         setSelectedPlayer(result.data);
         setOriginalPlayer(result.data);
       }
       
       // Resetear estados
-      setIsEditing(false);
-      resetFiles();
-      
-      setProcessingMessage('✅ Jugador actualizado exitosamente');
+      if (isMounted) {
+        setIsEditing(false);
+        resetFiles();
+        setProcessingMessage('✅ Jugador actualizado exitosamente');
+      }
       
     } catch (err: any) {
-      console.error('Error updating player with files:', err);
-      setError(err.message || 'Error actualizando jugador');
+      if (isMounted) {
+        console.error('Error updating player with files:', err);
+        setError(err.message || 'Error actualizando jugador');
+      }
     } finally {
-      setTimeout(() => {
-        setIsSaving(false);
-        setProcessingMessage('');
-      }, 1000);
+      if (isMounted) {
+        setTimeout(() => {
+          setIsSaving(false);
+          setProcessingMessage('');
+        }, 1000);
+      }
     }
   }, [selectedPlayer, originalPlayer, files, reloadPlayers, resetFiles]);
 
@@ -703,7 +828,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setError(null);
   }, [originalPlayer, resetFiles]);
 
-  // Función para eliminar jugador
+  // Función para eliminar jugador (optimizada)
   const handleDeletePlayer = useCallback(async (playerId: string) => {
     if (!selectedPlayer) {
       setError('No se ha seleccionado ningún jugador');
@@ -715,9 +840,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       return;
     }
     
+    let isMounted = true;
+    
     try {
       setIsSaving(true);
       const result = await deleteJugador(playerId, true);
+      
+      if (!isMounted) return;
       
       if (result.error) {
         const error = result.error as any;
@@ -729,27 +858,36 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         return;
       }
       
-      await reloadPlayers();
-      setShowPlayerModal(false);
-      setSelectedPlayer(null);
-      setOriginalPlayer(null);
+      if (isMounted) {
+        await reloadPlayers();
+        setShowPlayerModal(false);
+        setSelectedPlayer(null);
+        setOriginalPlayer(null);
+      }
       
     } catch (err: any) {
-      console.error('Error deleting player:', err);
-      setError(err.message || 'Error eliminando jugador');
+      if (isMounted) {
+        console.error('Error deleting player:', err);
+        setError(err.message || 'Error eliminando jugador');
+      }
     } finally {
-      setIsSaving(false);
+      if (isMounted) {
+        setIsSaving(false);
+      }
     }
   }, [selectedPlayer, reloadPlayers]);
 
   const handleDocumentOpen = useCallback((url: string, filename: string) => {
     setDocumentOpened(true);
     openDocument(url, filename);
-  }, [openDocument, setDocumentOpened]);
+  }, [openDocument]);
 
-  // FUNCIÓN DE IMPRESIÓN MEJORADA
+  // FUNCIÓN DE IMPRESIÓN MEJORADA (con cleanup)
   const handlePrint = useCallback(async () => {
     if (!selectedPlayer || isProcessing) return;
+    
+    let isMounted = true;
+    let printWindow: Window | null = null;
 
     try {
       setIsProcessing(true);
@@ -1006,7 +1144,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         </html>
       `;
 
-      const printWindow = window.open('', '_blank', 'width=900,height=700');
+      printWindow = window.open('', '_blank', 'width=900,height=700');
       
       if (!printWindow) {
         throw new Error('No se pudo abrir la ventana de impresión');
@@ -1017,10 +1155,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       printWindow.document.close();
       
       await new Promise<void>((resolve) => {
-        if (printWindow.document.readyState === 'complete') {
+        if (printWindow!.document.readyState === 'complete') {
           resolve();
         } else {
-          printWindow.addEventListener('load', () => resolve());
+          printWindow!.addEventListener('load', () => resolve());
         }
       });
 
@@ -1030,12 +1168,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       
       const printWithFallback = () => {
         try {
-          printWindow.print();
+          printWindow!.print();
           
           setTimeout(() => {
             try {
-              if (!printWindow.closed) {
-                printWindow.close();
+              if (!printWindow!.closed) {
+                printWindow!.close();
+                printWindow = null;
               }
             } catch (closeError) {
               console.log('No se pudo cerrar la ventana automáticamente');
@@ -1073,7 +1212,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
           }
           
           try {
-            printWindow.close();
+            if (printWindow && !printWindow.closed) {
+              printWindow.close();
+              printWindow = null;
+            }
           } catch (e) {
             console.log('No se pudo cerrar la ventana de impresión');
           }
@@ -1083,17 +1225,32 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setTimeout(printWithFallback, 500);
       
     } catch (error: any) {
-      console.error('Error en impresión:', error);
-      setError(`Error al preparar la impresión: ${error?.message || 'Error desconocido'}`);
+      if (isMounted) {
+        console.error('Error en impresión:', error);
+        setError(`Error al preparar la impresión: ${error?.message || 'Error desconocido'}`);
+      }
     } finally {
-      setIsProcessing(false);
-      setProcessingMessage('');
+      if (isMounted) {
+        setIsProcessing(false);
+        setProcessingMessage('');
+      }
     }
+    
+    return () => {
+      isMounted = false;
+      if (printWindow && !printWindow.closed) {
+        printWindow.close();
+        printWindow = null;
+      }
+    };
   }, [selectedPlayer, isProcessing]);
 
-  // FUNCIÓN DE DESCARGA DE REGISTRO MEJORADA
+  // FUNCIÓN DE DESCARGA DE REGISTRO MEJORADA (con cleanup)
   const handleDownloadRegister = useCallback(async () => {
     if (!selectedPlayer || isProcessing) return;
+    
+    let isMounted = true;
+    const blobUrls: string[] = [];
 
     try {
       setIsProcessing(true);
@@ -1137,6 +1294,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
             
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
+            blobUrls.push(blobUrl);
             
             const link = document.createElement('a');
             link.href = blobUrl;
@@ -1148,7 +1306,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
             
             setTimeout(() => {
               document.body.removeChild(link);
-              URL.revokeObjectURL(blobUrl);
               resolve();
             }, 100);
             
@@ -1183,31 +1340,42 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         setProcessingMessage(`Descargando 1 de ${documentsToDownload.length} documentos...`);
         
         for (let i = 0; i < documentsToDownload.length; i++) {
+          if (!isMounted) break;
+          
           setProcessingMessage(`Descargando ${i + 1} de ${documentsToDownload.length} documentos...`);
           await downloadFile(documentsToDownload[i]);
           
-          if (i < documentsToDownload.length - 1) {
+          if (i < documentsToDownload.length - 1 && isMounted) {
             await new Promise(resolve => setTimeout(resolve, 500));
           }
         }
         
-        setProcessingMessage('Todos los documentos descargados');
+        if (isMounted) {
+          setProcessingMessage('Todos los documentos descargados');
+        }
       }
 
       setTimeout(() => {
-        setIsProcessing(false);
-        setProcessingMessage('');
+        if (isMounted) {
+          setIsProcessing(false);
+          setProcessingMessage('');
+        }
       }, 1000);
       
     } catch (error: any) {
-      console.error('Error en descarga:', error);
-      setError(`Error al descargar documentos: ${error.message || 'Error desconocido'}`);
-      setIsProcessing(false);
-      setProcessingMessage('');
+      if (isMounted) {
+        console.error('Error en descarga:', error);
+        setError(`Error al descargar documentos: ${error.message || 'Error desconocido'}`);
+        setIsProcessing(false);
+        setProcessingMessage('');
+      }
+    } finally {
+      // Cleanup blob URLs
+      blobUrls.forEach(url => URL.revokeObjectURL(url));
     }
   }, [selectedPlayer, isProcessing]);
 
-  // Función para cerrar modal del jugador
+  // Función para cerrar modal del jugador (con cleanup completo)
   const closePlayerModal = useCallback(async () => {
     if (isProcessing) {
       const confirmed = window.confirm('Hay una operación en progreso. ¿Estás seguro de que deseas cerrar?');
@@ -1218,15 +1386,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setProcessingMessage('');
     
     setShowPlayerModal(false);
-    setSelectedPlayer(null);
-    setOriginalPlayer(null);
-    setIsEditing(false);
-    setEditSelectedPaisId('');
-    setEditSelectedDepartamentoId('');
-    setEditDepartamentos([]);
-    setEditCiudades([]);
-    resetFiles();
-    setError(null);
+    
+    // Limpiar estados grandes
+    setTimeout(() => {
+      setSelectedPlayer(null);
+      setOriginalPlayer(null);
+      setIsEditing(false);
+      setEditSelectedPaisId('');
+      setEditSelectedDepartamentoId('');
+      setEditDepartamentos([]);
+      setEditCiudades([]);
+      resetFiles();
+      setError(null);
+    }, 100);
   }, [isProcessing, resetFiles]);
 
   // Función para cerrar modal de agregar jugador
@@ -1235,26 +1407,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     resetPlayerForm();
   }, [resetPlayerForm]);
 
-  // Funciones de utilidad
-  const formatDate = useCallback((dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-CO');
-  }, []);
-
-  const calculateAge = useCallback((birthDate: string) => {
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    
-    return age;
-  }, []);
-
-  // NUEVA FUNCIÓN: Manejar generación de Paz y Salvo
+  // NUEVA FUNCIÓN: Manejar generación de Paz y Salvo (optimizada)
   const handleGeneratePeaceAndSafe = useCallback(async (data: PeaceAndSafeData) => {
+    let isMounted = true;
+    let printWindow: Window | null = null;
+
     try {
       setIsProcessing(true);
       setProcessingMessage('Generando Paz y Salvo...');
@@ -1263,7 +1420,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const printWindow = window.open('', '_blank');
+      if (!isMounted) return;
+      
+      printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write(`
           <!DOCTYPE html>
@@ -1319,27 +1478,32 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         printWindow.print();
       }
       
-      setProcessingMessage('Paz y Salvo generado exitosamente');
+      if (isMounted) {
+        setProcessingMessage('Paz y Salvo generado exitosamente');
+      }
       
     } catch (error: any) {
-      console.error('Error generando Paz y Salvo:', error);
-      setError(`Error al generar Paz y Salvo: ${error.message || 'Error desconocido'}`);
+      if (isMounted) {
+        console.error('Error generando Paz y Salvo:', error);
+        setError(`Error al generar Paz y Salvo: ${error.message || 'Error desconocido'}`);
+      }
     } finally {
-      setTimeout(() => {
-        setIsProcessing(false);
-        setProcessingMessage('');
-      }, 1000);
+      if (isMounted) {
+        setTimeout(() => {
+          setIsProcessing(false);
+          setProcessingMessage('');
+        }, 1000);
+      }
     }
+    
+    return () => {
+      isMounted = false;
+      if (printWindow && !printWindow.closed) {
+        printWindow.close();
+        printWindow = null;
+      }
+    };
   }, []);
-
-  // Función auxiliar para formatear fecha del documento
-  const formatDateForDocument = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day} / ${month} / ${year}`;
-  };
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -1579,7 +1743,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
           editSelectedDepartamentoId={editSelectedDepartamentoId}
           onClose={closePlayerModal}
           onEdit={() => setIsEditing(true)}
-          onSave={handleUpdatePlayerWithFiles} // Esta función ahora acepta archivos
+          onSave={handleUpdatePlayerWithFiles}
           onCancelEdit={handleCancelEdit}
           onDelete={handleDeletePlayer}
           onInputChange={handleEditInputChange}

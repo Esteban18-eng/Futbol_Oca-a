@@ -1,5 +1,5 @@
 // src/components/coach/components/PlayerModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PlayerModalProps } from '../types/coachTypes';
 import { 
     getGoogleDriveImageUrls, 
@@ -12,6 +12,7 @@ import { PeaceAndSafeData } from '../types/peaceAndSafeTypes';
 import FileUpload from '../../../shared/components/fileUpload';
 import { PlayerFiles } from '../../../../services/supabaseClient';
 import './PlayerModal.css';
+import { perfMonitor } from '../../../../utils/performanceMonitor';
 
 interface LocalPlayerFiles {
     foto_perfil: File | null;
@@ -63,7 +64,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
     const [showDiagnostic, setShowDiagnostic] = useState(false);
     const [showPeaceAndSafeModal, setShowPeaceAndSafeModal] = useState(false);
     
-    // NUEVO: Estados para archivos en edición
+    // Estados para archivos en edición
     const [localFiles, setLocalFiles] = useState<LocalPlayerFiles>({
         foto_perfil: null,
         documento_pdf: null,
@@ -75,7 +76,46 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         foto_perfil: null
     });
 
+    // Refs para limpieza
+    const imageRef = useRef<HTMLImageElement | null>(null);
+    const isMountedRef = useRef(true);
+    const previewUrlRef = useRef<string | null>(null);
+
+    // Limpieza de recursos al desmontar
     useEffect(() => {
+        isMountedRef.current = true;
+        
+        return () => {
+            isMountedRef.current = false;
+            
+            // Limpiar imagen
+            if (imageRef.current) {
+                imageRef.current.onload = null;
+                imageRef.current.onerror = null;
+                imageRef.current.src = '';
+                imageRef.current = null;
+            }
+            
+            // Limpiar preview URLs
+            if (previewUrlRef.current && previewUrlRef.current.startsWith('blob:')) {
+                URL.revokeObjectURL(previewUrlRef.current);
+                previewUrlRef.current = null;
+            }
+            
+            // Limpiar file previews
+            if (filePreviews.foto_perfil && filePreviews.foto_perfil.startsWith('blob:')) {
+                URL.revokeObjectURL(filePreviews.foto_perfil);
+            }
+            
+            perfMonitor.end('playerModalLifecycle');
+        };
+    }, []);
+
+    // Efecto principal - manejo de imágenes con cleanup
+    useEffect(() => {
+        perfMonitor.start('playerModalImageLoad');
+        let imageCleanup: (() => void) | null = null;
+        
         // Reset image states cuando cambia el jugador
         setImageError(false);
         setImageLoaded(false);
@@ -87,7 +127,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         if (player.foto_perfil_url && !isEditing) {
             const type = getGoogleDriveUrlType(player.foto_perfil_url);
             setUrlType(type);
-            console.log('📋 Tipo de URL detectado:', type);
             
             if (type === 'folder') {
                 console.error('❌ URL de carpeta detectada - no se puede cargar imagen');
@@ -97,19 +136,52 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
             
             const urls = getGoogleDriveImageUrls(player.foto_perfil_url);
             setImageUrls(urls);
-            if (urls.length > 0) {
-                console.log('🖼️ URLs de imagen generadas:', urls);
-                setConvertedImageUrl(urls[0]);
-            } else {
+            
+            if (urls.length > 0 && isMountedRef.current) {
+                const url = urls[0];
+                setConvertedImageUrl(url);
+                
+                // Cargar imagen con cleanup
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.referrerPolicy = 'no-referrer';
+                img.src = url;
+                
+                const handleLoad = () => {
+                    if (isMountedRef.current) {
+                        console.log(`✅ Imagen cargada correctamente:`, url);
+                        setImageLoaded(true);
+                        setImageError(false);
+                    }
+                };
+                
+                const handleError = () => {
+                    if (isMountedRef.current) {
+                        console.error(`❌ Error cargando imagen:`, url);
+                        handleImageError();
+                    }
+                };
+                
+                img.onload = handleLoad;
+                img.onerror = handleError;
+                
+                imageCleanup = () => {
+                    img.onload = null;
+                    img.onerror = null;
+                    img.src = '';
+                };
+                
+                imageRef.current = img;
+            } else if (isMountedRef.current) {
                 setImageError(true);
             }
-        } else {
+        } else if (isMountedRef.current) {
             setImageUrls([]);
             setConvertedImageUrl('');
         }
         
         // Resetear archivos locales cuando se cancela la edición
-        if (!isEditing) {
+        if (!isEditing && isMountedRef.current) {
             setLocalFiles({
                 foto_perfil: null,
                 documento_pdf: null,
@@ -119,16 +191,28 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                 foto_perfil: null
             });
         }
+        
+        return () => {
+            if (imageCleanup) {
+                imageCleanup();
+            }
+            perfMonitor.end('playerModalImageLoad');
+        };
     }, [player, isEditing]);
 
     useEffect(() => {
-        if (documentOpened) {
+        if (documentOpened && isMountedRef.current) {
             console.log('📄 Documento abierto');
         }
     }, [documentOpened]);
 
-    // NUEVO: Función para manejar selección de archivos
-    const handleFileSelect = (fileType: keyof PlayerFiles, file: File | null) => {
+    // Función para manejar selección de archivos con cleanup
+    const handleFileSelect = useCallback((fileType: keyof PlayerFiles, file: File | null) => {
+        // Limpiar preview anterior si existe
+        if (fileType === 'foto_perfil' && filePreviews.foto_perfil && filePreviews.foto_perfil.startsWith('blob:')) {
+            URL.revokeObjectURL(filePreviews.foto_perfil);
+        }
+        
         setLocalFiles(prev => ({
             ...prev,
             [fileType]: file
@@ -137,65 +221,92 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         // Generar preview para foto de perfil
         if (fileType === 'foto_perfil' && file) {
             const reader = new FileReader();
+            
             reader.onload = (e) => {
-                setFilePreviews(prev => ({
-                    ...prev,
-                    foto_perfil: e.target?.result as string
-                }));
+                if (isMountedRef.current && e.target?.result) {
+                    const newPreview = e.target.result as string;
+                    
+                    // Guardar referencia para cleanup
+                    if (previewUrlRef.current && previewUrlRef.current.startsWith('blob:')) {
+                        URL.revokeObjectURL(previewUrlRef.current);
+                    }
+                    previewUrlRef.current = newPreview;
+                    
+                    setFilePreviews(prev => ({
+                        ...prev,
+                        foto_perfil: newPreview
+                    }));
+                }
             };
+            
+            reader.onerror = () => {
+                if (isMountedRef.current) {
+                    console.error('Error leyendo archivo');
+                }
+            };
+            
             reader.readAsDataURL(file);
+        } else if (fileType === 'foto_perfil' && isMountedRef.current) {
+            setFilePreviews(prev => ({
+                ...prev,
+                foto_perfil: null
+            }));
         }
-    };
+    }, [filePreviews.foto_perfil]);
 
-    // NUEVO: Función para preparar datos con archivos
-const prepareSaveData = () => {
-    const formData = new FormData();
-    let hasFileChanges = false;
+    // Función para preparar datos con archivos
+    const prepareSaveData = useCallback(() => {
+        const formData = new FormData();
+        let hasFileChanges = false;
 
-    // Agregar archivos al FormData si existen
-    Object.entries(localFiles).forEach(([key, file]) => {
-        if (file) {
-            formData.append(key, file);
-            hasFileChanges = true;
+        // Agregar archivos al FormData si existen
+        Object.entries(localFiles).forEach(([key, file]) => {
+            if (file) {
+                formData.append(key, file);
+                hasFileChanges = true;
+            }
+        });
+
+        return {
+            playerData: { ...player },
+            formData: hasFileChanges ? formData : null,
+            fileChanges: localFiles
+        };
+    }, [player, localFiles]);
+
+    // Función para manejar guardado con archivos
+    const handleSaveWithFiles = useCallback(() => {
+        perfMonitor.start('playerModalSave');
+        
+        const { fileChanges } = prepareSaveData();
+        
+        console.log('📤 Guardando jugador con cambios:', {
+            datos: hasChanges(),
+            archivos: Object.keys(fileChanges).filter(key => fileChanges[key as keyof LocalPlayerFiles])
+        });
+        
+        // Filtrar solo archivos que tienen cambios
+        const filesToUpdate: Partial<PlayerFiles> = {};
+        Object.keys(fileChanges).forEach(key => {
+            const fileType = key as keyof LocalPlayerFiles;
+            if (fileChanges[fileType]) {
+                filesToUpdate[fileType] = fileChanges[fileType];
+            }
+        });
+        
+        // Si hay archivos para actualizar, pasarlos a onSave
+        if (Object.keys(filesToUpdate).length > 0) {
+            console.log('📁 Archivos a actualizar:', filesToUpdate);
+            onSave(filesToUpdate);
+        } else {
+            console.log('ℹ️ No hay cambios en archivos');
+            onSave();
         }
-    });
+        
+        perfMonitor.end('playerModalSave');
+    }, [prepareSaveData, onSave]);
 
-    return {
-        playerData: { ...player },
-        formData: hasFileChanges ? formData : null,
-        fileChanges: localFiles
-    };
-};
-
-    // NUEVO: Función para manejar guardado con archivos
-    const handleSaveWithFiles = async () => {
-    const { fileChanges } = prepareSaveData();
-    
-    console.log('📤 Guardando jugador con cambios:', {
-        datos: hasChanges(),
-        archivos: Object.keys(fileChanges).filter(key => fileChanges[key as keyof PlayerFiles])
-    });
-    
-    // Filtrar solo archivos que tienen cambios
-    const filesToUpdate = Object.keys(fileChanges).reduce((acc, key) => {
-        const fileType = key as keyof PlayerFiles;
-        if (fileChanges[fileType]) {
-            acc[fileType] = fileChanges[fileType];
-        }
-        return acc;
-    }, {} as Partial<PlayerFiles>);
-    
-    // Si hay archivos para actualizar, pasarlos a onSave
-    if (Object.keys(filesToUpdate).length > 0) {
-        console.log('📁 Archivos a actualizar:', filesToUpdate);
-        onSave(filesToUpdate);
-    } else {
-        console.log('ℹ️ No hay cambios en archivos');
-        onSave();
-    }
-};
-
-    const calculateAge = (birthDate: string) => {
+    const calculateAge = useCallback((birthDate: string) => {
         const today = new Date();
         const birth = new Date(birthDate);
         let age = today.getFullYear() - birth.getFullYear();
@@ -205,13 +316,13 @@ const prepareSaveData = () => {
             age--;
         }
         return age;
-    };
+    }, []);
 
-    const formatDate = (dateString: string) => {
+    const formatDate = useCallback((dateString: string) => {
         return new Date(dateString).toLocaleDateString('es-CO');
-    };
+    }, []);
 
-    const handlePaisChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handlePaisChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { value } = e.target;
         onInputChange(e);
         
@@ -219,9 +330,9 @@ const prepareSaveData = () => {
         if (selectedPais) {
             await onLoadEditDepartamentos(selectedPais.id);
         }
-    };
+    }, [editPaises, onInputChange, onLoadEditDepartamentos]);
 
-    const handleDepartamentoChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleDepartamentoChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { value } = e.target;
         onInputChange(e);
         
@@ -229,9 +340,9 @@ const prepareSaveData = () => {
         if (selectedDepto) {
             await onLoadEditCiudades(selectedDepto.id);
         }
-    };
+    }, [editDepartamentos, onInputChange, onLoadEditCiudades]);
 
-    const hasChanges = () => {
+    const hasChanges = useCallback(() => {
         if (!originalPlayer) return false;
         
         const dataChanges = (
@@ -248,9 +359,11 @@ const prepareSaveData = () => {
         const fileChanges = Object.values(localFiles).some(file => file !== null);
         
         return dataChanges || fileChanges;
-    };
+    }, [player, originalPlayer, localFiles]);
 
-    const handleImageError = () => {
+    const handleImageError = useCallback(() => {
+        if (!isMountedRef.current) return;
+        
         console.error(`❌ Error cargando la imagen (intento ${currentUrlIndex + 1}/${imageUrls.length}):`, convertedImageUrl);
         
         if (currentUrlIndex < imageUrls.length - 1) {
@@ -265,15 +378,11 @@ const prepareSaveData = () => {
             setImageLoaded(false);
             console.log('❌ Todas las URLs fallaron');
         }
-    };
+    }, [currentUrlIndex, imageUrls, convertedImageUrl]);
 
-    const handleImageLoad = () => {
-        console.log(`✅ Imagen cargada correctamente (URL ${currentUrlIndex + 1}/${imageUrls.length}):`, convertedImageUrl);
-        setImageLoaded(true);
-        setImageError(false);
-    };
-
-    const reloadImage = () => {
+    const reloadImage = useCallback(() => {
+        if (!isMountedRef.current) return;
+        
         console.log('🔄 Reintentando cargar imagen desde el principio...');
         setImageError(false);
         setImageLoaded(false);
@@ -282,19 +391,22 @@ const prepareSaveData = () => {
         if (imageUrls.length > 0) {
             setConvertedImageUrl(imageUrls[0] + '&t=' + Date.now());
         }
-    };
+    }, [imageUrls]);
 
-    const runDiagnostic = async () => {
-        if (player.foto_perfil_url) {
-            console.log('🔍 Ejecutando diagnóstico...');
-            setShowDiagnostic(true);
-            const diagnosis = await diagnoseGoogleDriveUrl(player.foto_perfil_url);
+    const runDiagnostic = useCallback(async () => {
+        if (!player.foto_perfil_url || !isMountedRef.current) return;
+        
+        console.log('🔍 Ejecutando diagnóstico...');
+        setShowDiagnostic(true);
+        const diagnosis = await diagnoseGoogleDriveUrl(player.foto_perfil_url);
+        
+        if (isMountedRef.current) {
             setDiagnosticInfo(diagnosis);
             console.log('📊 Resultado diagnóstico:', diagnosis);
         }
-    };
+    }, [player.foto_perfil_url]);
 
-    const handleDocumentOpen = (url: string, filename: string) => {
+    const handleDocumentOpen = useCallback((url: string, filename: string) => {
         console.log('📄 Abriendo documento en modal interno:', filename);
         
         if (onDocumentOpen) {
@@ -307,17 +419,29 @@ const prepareSaveData = () => {
                 : url;
             window.open(viewerUrl, '_blank', 'noopener,noreferrer');
         }
-    };
+    }, [onDocumentOpen]);
 
-    const handleGeneratePeaceAndSafe = (data: PeaceAndSafeData) => {
+    const handleGeneratePeaceAndSafe = useCallback((data: PeaceAndSafeData) => {
         console.log('📄 Generando Paz y Salvo:', data);
         if (onGeneratePeaceAndSafe) {
             onGeneratePeaceAndSafe(data);
         } else {
             alert(`Paz y Salvo generado para ${data.playerName}\n\nSe guardará en Google Drive y se descargará automáticamente.`);
         }
-    };
+    }, [onGeneratePeaceAndSafe]);
 
+    // Botón de cancelar con confirmación si hay cambios
+    const handleCancelEdit = useCallback(() => {
+        if (hasChanges()) {
+            if (window.confirm('¿Estás seguro de cancelar la edición? Se perderán los cambios no guardados.')) {
+                onCancelEdit();
+            }
+        } else {
+            onCancelEdit();
+        }
+    }, [hasChanges, onCancelEdit]);
+
+    // Render
     return (
         <div className="player-modal-overlay" onClick={onClose}>
             <div className="player-modal-container" onClick={(e) => e.stopPropagation()}>
@@ -335,7 +459,7 @@ const prepareSaveData = () => {
                     <div className="player-header-info">
                         <div className="player-photo-wrapper">
                             {isEditing ? (
-                                // NUEVO: Mostrar FileUpload en modo edición
+                                // Mostrar FileUpload en modo edición
                                 <div className="player-photo-edit">
                                     <FileUpload
                                         type="foto_perfil"
@@ -347,17 +471,30 @@ const prepareSaveData = () => {
                                         currentUrl={filePreviews.foto_perfil || player.foto_perfil_url || null}
                                         required={false}
                                     />
+                                    {player.foto_perfil_url && !localFiles.foto_perfil && (
+                                        <div className="player-current-photo-note">
+                                            ⚠️ Manteniendo foto actual
+                                        </div>
+                                    )}
                                 </div>
                             ) : convertedImageUrl && !imageError ? (
                                 // Mostrar imagen normal en modo lectura
                                 <>
                                     <img 
+                                        ref={imageRef}
                                         src={convertedImageUrl}
                                         alt={`${player.nombre} ${player.apellido}`}
                                         className="player-main-photo"
                                         onError={handleImageError}
-                                        onLoad={handleImageLoad}
+                                        onLoad={() => {
+                                            if (isMountedRef.current) {
+                                                setImageLoaded(true);
+                                                setImageError(false);
+                                            }
+                                        }}
                                         style={{ display: imageLoaded ? 'block' : 'none' }}
+                                        crossOrigin="anonymous"
+                                        loading="lazy"
                                     />
                                     {!imageLoaded && !imageError && (
                                         <div className="player-photo-loading">
@@ -511,7 +648,7 @@ const prepareSaveData = () => {
                                 </div>
                             </div>
 
-                            {/* NUEVO: Sección de Documentos en modo edición */}
+                            {/* Sección de Documentos en modo edición */}
                             <div className="player-form-section">
                                 <h4 className="player-section-title">📁 Documentos</h4>
                                 <div className="player-documents-edit">
@@ -723,7 +860,11 @@ const prepareSaveData = () => {
                             )}
                             <button 
                                 className="player-action-btn player-delete-btn" 
-                                onClick={() => onDelete(player.id)}
+                                onClick={() => {
+                                    if (window.confirm(`¿Estás seguro de eliminar a ${player.nombre} ${player.apellido}?`)) {
+                                        onDelete(player.id);
+                                    }
+                                }}
                             >
                                 🗑️ Eliminar
                             </button>
@@ -746,7 +887,7 @@ const prepareSaveData = () => {
                             </button>
                             <button 
                                 className="player-action-btn player-cancel-btn" 
-                                onClick={onCancelEdit}
+                                onClick={handleCancelEdit}
                                 disabled={isSaving}
                             >
                                 ❌ Cancelar
@@ -771,4 +912,4 @@ const prepareSaveData = () => {
     );
 };
 
-export default PlayerModal;
+export default React.memo(PlayerModal);
