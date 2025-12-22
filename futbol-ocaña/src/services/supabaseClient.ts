@@ -3,7 +3,7 @@ import { Database } from './supabase.types'
 
 // Debug: Verificar que las variables se están cargando
 console.log('Variables de entorno:')
-console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL)
+console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL ? 'Definida' : 'No definida')
 console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Definida' : 'No definida')
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
