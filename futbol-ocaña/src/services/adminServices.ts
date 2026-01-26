@@ -1,24 +1,47 @@
-import { supabase, /*Usuario,*/ UsuarioInsert, /*Escuela*/ } from './supabaseClient';
+import { supabase/*, UsuarioInsert*/ } from './supabaseClient';
 
-// Función para crear un nuevo administrador
+// Función para generar contraseña segura aleatoria
+/*const generateSecurePassword = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  let password = '';
+  for (let i = 0; i < 16; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};*/
+
+// Función para crear un nuevo administrador (versión segura)
 export const createAdmin = async (adminData: {
   email: string;
   nombre: string;
   apellido: string;
-  password: string;
+  password: string; // Ahora solo usamos una contraseña
 }) => {
   try {
-    // Primero crear el usuario en Auth
+    console.log('🔑 Creando nuevo administrador:', adminData.email);
+
+    // Crear el usuario en Auth de Supabase
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: adminData.email,
       password: adminData.password,
+      options: {
+        data: {
+          nombre: adminData.nombre,
+          apellido: adminData.apellido,
+          is_admin: true
+        }
+      }
     });
 
-    if (authError) throw authError;
-    if (!authData.user) throw new Error('No se pudo crear el usuario');
+    if (authError) {
+      console.error('❌ Error creando usuario en Auth:', authError);
+      throw authError;
+    }
+    
+    if (!authData.user) throw new Error('No se pudo crear el usuario en Auth');
 
-    // Luego crear el registro en la tabla usuarios
-    const usuarioData: UsuarioInsert = {
+    // Crear registro en la tabla usuarios
+    const usuarioData: any = {
       id: authData.user.id,
       email: adminData.email,
       nombre: adminData.nombre,
@@ -27,38 +50,80 @@ export const createAdmin = async (adminData: {
       activo: true
     };
 
+    // Solo agregar system_password si la columna existe
+    try {
+      usuarioData.system_password = adminData.password;
+    } catch (e) {
+      console.log('La columna system_password no existe, omitiendo...');
+    }
+
     const { data, error } = await supabase
       .from('usuarios')
       .insert(usuarioData)
       .select()
       .single();
 
-    return { data, error };
-  } catch (error) {
+    if (error) {
+      console.error('❌ Error creando registro en usuarios:', error);
+      
+      // Intentar eliminar el usuario de Auth
+      try {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+      } catch (deleteError) {
+        console.error('Error eliminando usuario de Auth:', deleteError);
+      }
+      
+      throw error;
+    }
+
+    console.log('✅ Administrador creado exitosamente');
+    return { 
+      data: { 
+        ...data, 
+        created_at: new Date().toISOString()
+      }, 
+      error: null 
+    };
+  } catch (error: any) {
+    console.error('💥 Error general creando admin:', error);
     return { data: null, error };
   }
 };
 
-// Función para crear un nuevo entrenador
+// Función para crear un nuevo entrenador (versión segura)
 export const createCoach = async (coachData: {
   email: string;
   nombre: string;
   apellido: string;
-  password: string;
+  password: string; // Solo una contraseña
   escuela_id: string;
 }) => {
   try {
-    // Primero crear el usuario en Auth
+    console.log('🔑 Creando nuevo entrenador:', coachData.email);
+
+    // Crear el usuario en Auth de Supabase
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: coachData.email,
       password: coachData.password,
+      options: {
+        data: {
+          nombre: coachData.nombre,
+          apellido: coachData.apellido,
+          escuela_id: coachData.escuela_id,
+          is_coach: true
+        }
+      }
     });
 
-    if (authError) throw authError;
-    if (!authData.user) throw new Error('No se pudo crear el usuario');
+    if (authError) {
+      console.error('❌ Error creando usuario en Auth:', authError);
+      throw authError;
+    }
+    
+    if (!authData.user) throw new Error('No se pudo crear el usuario en Auth');
 
-    // Luego crear el registro en la tabla usuarios
-    const usuarioData: UsuarioInsert = {
+    // Crear registro en la tabla usuarios
+    const usuarioData: any = {
       id: authData.user.id,
       email: coachData.email,
       nombre: coachData.nombre,
@@ -67,6 +132,13 @@ export const createCoach = async (coachData: {
       escuela_id: coachData.escuela_id,
       activo: true
     };
+
+    // Solo agregar system_password si la columna existe
+    try {
+      usuarioData.system_password = coachData.password;
+    } catch (e) {
+      console.log('La columna system_password no existe, omitiendo...');
+    }
 
     const { data, error } = await supabase
       .from('usuarios')
@@ -77,8 +149,29 @@ export const createCoach = async (coachData: {
       `)
       .single();
 
-    return { data, error };
-  } catch (error) {
+    if (error) {
+      console.error('❌ Error creando registro en usuarios:', error);
+      
+      // Intentar eliminar el usuario de Auth
+      try {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+      } catch (deleteError) {
+        console.error('Error eliminando usuario de Auth:', deleteError);
+      }
+      
+      throw error;
+    }
+
+    console.log('✅ Entrenador creado exitosamente');
+    return { 
+      data: { 
+        ...data, 
+        created_at: new Date().toISOString()
+      }, 
+      error: null 
+    };
+  } catch (error: any) {
+    console.error('💥 Error general creando coach:', error);
     return { data: null, error };
   }
 };
@@ -156,5 +249,56 @@ export const getAdminStats = async () => {
       totalCategorias: 0,
       error: error.message 
     };
+  }
+};
+
+// Función para verificar si un usuario existe por email (para recuperación)
+export const checkUserExistsByEmail = async (email: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id, email, nombre, apellido, rol, activo')
+      .eq('email', email.trim())
+      .single();
+
+    if (error) {
+      // Usuario no encontrado
+      if (error.code === 'PGRST116') {
+        return { exists: false, data: null, error: null };
+      }
+      throw error;
+    }
+
+    return { 
+      exists: true, 
+      data: {
+        ...data,
+        estado: data.activo ? 'Activo' : 'Inactivo',
+        tipo: data.rol === 'admin' ? 'Administrador' : 'Entrenador'
+      }, 
+      error: null 
+    };
+  } catch (error: any) {
+    console.error('❌ Error verificando usuario:', error);
+    return { exists: false, data: null, error };
+  }
+};
+
+// Función para enviar email de recuperación de contraseña
+export const sendPasswordRecoveryEmail = async (email: string) => {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      {
+        redirectTo: `${window.location.origin}/update-password`,
+      }
+    );
+
+    if (error) throw error;
+
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error('❌ Error enviando email de recuperación:', error);
+    return { success: false, error };
   }
 };

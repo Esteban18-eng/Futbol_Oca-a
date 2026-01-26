@@ -204,7 +204,6 @@ export const uploadRegistroCivilPDF = async (file: File, documento: string): Pro
 };
 
 // Función para subir múltiples archivos de un jugador
-// Función para subir múltiples archivos de un jugador
 export const uploadPlayerFiles = async (files: PlayerFiles, documento: string) => {
   const results = {
     foto_perfil_url: '', // Cambiado de null a string vacío
@@ -314,7 +313,160 @@ export const extractFilePathFromUrl = (url: string): string | null => {
 };
 
 // ===========================================
-// FUNCIONES EXISTENTES (SIN CAMBIOS)
+// FUNCIONES MODIFICADAS PARA PAGINACIÓN DE JUGADORES
+// ===========================================
+
+// Función para obtener todos los jugadores (solo para admins) CON PAGINACIÓN
+export const getAllJugadores = async () => {
+  try {
+    // Primero, obtenemos el conteo total para saber cuántas páginas necesitamos
+    const { count: totalCount, error: countError } = await supabase
+      .from('jugadores')
+      .select('*', { count: 'exact', head: true })
+      .eq('activo', true);
+    
+    if (countError) throw countError;
+    
+    console.log(`📊 Total de jugadores en BD: ${totalCount}`);
+    
+    // Supabase tiene límite de 1000 por consulta, así que necesitamos paginación
+    const LIMIT = 1000;
+    const allJugadores: Jugador[] = [];
+    
+    // Si tenemos más de 1000 jugadores, hacemos múltiples consultas
+    if (totalCount && totalCount > LIMIT) {
+      const totalPages = Math.ceil(totalCount / LIMIT);
+      console.log(`🔄 Se necesitan ${totalPages} consultas para obtener todos los jugadores`);
+      
+      // Hacemos consultas paginadas
+      for (let page = 0; page < totalPages; page++) {
+        const from = page * LIMIT;
+        const to = from + LIMIT - 1;
+        
+        const { data: pageData, error: pageError } = await supabase
+          .from('jugadores')
+          .select(`
+            *,
+            categoria:categorias(*),
+            escuela:escuelas(*)
+          `)
+          .eq('activo', true)
+          .order('apellido', { ascending: true })
+          .range(from, to);
+        
+        if (pageError) {
+          console.error(`❌ Error en página ${page + 1}:`, pageError);
+          throw pageError;
+        }
+        
+        if (pageData) {
+          allJugadores.push(...(pageData as Jugador[]));
+        }
+        
+        console.log(`✅ Página ${page + 1}/${totalPages} - ${pageData?.length || 0} jugadores`);
+      }
+      
+      console.log(`🎯 Total obtenido: ${allJugadores.length} jugadores`);
+      return { data: allJugadores, error: null };
+      
+    } else {
+      // Si son menos de 1000, una sola consulta
+      const { data, error } = await supabase
+        .from('jugadores')
+        .select(`
+          *,
+          categoria:categorias(*),
+          escuela:escuelas(*)
+        `)
+        .eq('activo', true)
+        .order('apellido', { ascending: true });
+      
+      if (error) throw error;
+      
+      console.log(`✅ Jugadores obtenidos: ${data?.length || 0}`);
+      return { data: data as Jugador[] | null, error: null };
+    }
+    
+  } catch (catchError) {
+    console.error('💥 Error en getAllJugadores:', catchError);
+    return { data: null, error: catchError };
+  }
+}
+
+// Función para obtener jugadores por escuela (para entrenadores) CON PAGINACIÓN
+export const getJugadoresByEscuela = async (escuelaId: string) => {
+  try {
+    // Primero, obtenemos el conteo total
+    const { count: totalCount, error: countError } = await supabase
+      .from('jugadores')
+      .select('*', { count: 'exact', head: true })
+      .eq('escuela_id', escuelaId)
+      .eq('activo', true);
+    
+    if (countError) throw countError;
+    
+    console.log(`📊 Total de jugadores en escuela ${escuelaId}: ${totalCount}`);
+    
+    const LIMIT = 1000;
+    const allJugadores: Jugador[] = [];
+    
+    if (totalCount && totalCount > LIMIT) {
+      const totalPages = Math.ceil(totalCount / LIMIT);
+      console.log(`🔄 Se necesitan ${totalPages} consultas para la escuela`);
+      
+      for (let page = 0; page < totalPages; page++) {
+        const from = page * LIMIT;
+        const to = from + LIMIT - 1;
+        
+        const { data: pageData, error: pageError } = await supabase
+          .from('jugadores')
+          .select(`
+            *,
+            categoria:categorias(*),
+            escuela:escuelas(*)
+          `)
+          .eq('escuela_id', escuelaId)
+          .eq('activo', true)
+          .order('apellido', { ascending: true })
+          .range(from, to);
+        
+        if (pageError) throw pageError;
+        
+        if (pageData) {
+          allJugadores.push(...(pageData as Jugador[]));
+        }
+        
+        console.log(`✅ Escuela - Página ${page + 1}/${totalPages}`);
+      }
+      
+      console.log(`🎯 Total obtenido para escuela: ${allJugadores.length}`);
+      return { data: allJugadores, error: null };
+      
+    } else {
+      const { data, error } = await supabase
+        .from('jugadores')
+        .select(`
+          *,
+          categoria:categorias(*),
+          escuela:escuelas(*)
+        `)
+        .eq('escuela_id', escuelaId)
+        .eq('activo', true)
+        .order('apellido', { ascending: true });
+      
+      if (error) throw error;
+      
+      console.log(`✅ Jugadores obtenidos por escuela: ${data?.length || 0}`);
+      return { data: data as Jugador[] | null, error: null };
+    }
+  } catch (catchError) {
+    console.error('💥 Error en getJugadoresByEscuela:', catchError);
+    return { data: null, error: catchError };
+  }
+}
+
+// ===========================================
+// FUNCIONES EXISTENTES (SIN CAMBIOS DE PAGINACIÓN)
 // ===========================================
 
 // Helper functions para la autenticación
@@ -363,45 +515,6 @@ export const isEntrenador = async (): Promise<boolean> => {
 export const getUserEscuela = async () => {
   const profile = await getUserProfile()
   return profile?.data?.escuela || null
-}
-
-// Función para obtener todos los jugadores (solo para admins)
-export const getAllJugadores = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('jugadores')
-      .select(`
-        *,
-        categoria:categorias(*),
-        escuela:escuelas(*)
-      `)
-      .eq('activo', true)
-      .order('apellido', { ascending: true });
-    
-    return { data: data as Jugador[] | null, error };
-  } catch (catchError) {
-    return { data: null, error: catchError };
-  }
-}
-
-// Función para obtener jugadores por escuela (para entrenadores)
-export const getJugadoresByEscuela = async (escuelaId: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('jugadores')
-      .select(`
-        *,
-        categoria:categorias(*),
-        escuela:escuelas(*)
-      `)
-      .eq('escuela_id', escuelaId)
-      .eq('activo', true)
-      .order('apellido', { ascending: true });
-    
-    return { data: data as Jugador[] | null, error };
-  } catch (catchError) {
-    return { data: null, error: catchError };
-  }
 }
 
 // Función para obtener todas las categorías

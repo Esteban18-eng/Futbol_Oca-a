@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './components/Login';
 import Dashboard from './components/Dasboard/coach/Dashboard';
 import AdminDashboard from './components/Dasboard/admin/AdminDashboard';
+import UpdatePassword from './components/UpdatePassword'; // Añadir esta importación
 import { supabase } from './services/supabaseClient';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
@@ -337,6 +338,7 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
+          {/* Ruta de login */}
           <Route 
             path="/login" 
             element={
@@ -352,6 +354,15 @@ function App() {
             } 
           />
           
+          {/* Ruta para actualizar contraseña (accesible sin estar logueado) */}
+          <Route 
+            path="/update-password" 
+            element={
+              <UpdatePassword />
+            } 
+          />
+          
+          {/* Ruta del dashboard de entrenador */}
           <Route 
             path="/coach-dashboard" 
             element={
@@ -367,6 +378,7 @@ function App() {
             } 
           />
           
+          {/* Ruta del dashboard de administrador */}
           <Route 
             path="/admin-dashboard" 
             element={
@@ -382,6 +394,7 @@ function App() {
             } 
           />
           
+          {/* Ruta raíz - redirección automática */}
           <Route 
             path="/" 
             element={
@@ -408,12 +421,20 @@ function App() {
               }}>
                 <h1 className="text-muted mb-4">404 - Página no encontrada</h1>
                 <p className="mb-4">La página que buscas no existe.</p>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => window.location.href = '/'}
-                >
-                  Volver al inicio
-                </button>
+                <div className="d-flex gap-2">
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => window.location.href = '/'}
+                  >
+                    Volver al inicio
+                  </button>
+                  <button 
+                    className="btn btn-outline-secondary"
+                    onClick={() => window.location.href = '/login'}
+                  >
+                    Ir al login
+                  </button>
+                </div>
               </div>
             }
           />
