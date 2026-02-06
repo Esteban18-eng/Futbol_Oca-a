@@ -4,20 +4,10 @@ import Login from './components/Login';
 import Dashboard from './components/Dasboard/coach/Dashboard';
 import AdminDashboard from './components/Dasboard/admin/AdminDashboard';
 import UpdatePassword from './components/UpdatePassword'; // Añadir esta importación
-import { supabase } from './services/supabaseClient';
+import { supabase, Usuario } from './services/supabaseClient';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
-interface Usuario {
-  id: string;
-  email: string;
-  nombre: string;
-  apellido: string;
-  rol: 'admin' | 'entrenador';
-  activo: boolean | null;
-  escuela_id: string | null;
-  created_at: string | null;
-}
 
 function App() {
   const [user, setUser] = useState<Usuario | null>(null);

@@ -70,7 +70,7 @@ export function addWatermark(
   doc: jsPDF, 
   imageUrl: string, 
   opacity: number = 0.1,
-  rotation: number = 45
+  /*rotation: number = 45*/
 ): void {
   try {
     const pageWidth = doc.internal.pageSize.width;

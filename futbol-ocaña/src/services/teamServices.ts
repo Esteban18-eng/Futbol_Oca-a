@@ -243,7 +243,7 @@ export const escuelaTieneLogo = (escuela: Escuela): boolean => {
 /**
  * Obtiene URL del logo con tamaño específico (para optimización)
  */
-export const getLogoUrlWithSize = (logoUrl: string | null, size: 'small' | 'medium' | 'large' = 'medium'): string | null => {
+export const getLogoUrlWithSize = (logoUrl: string | null /*size: 'small' | 'medium' | 'large' = 'medium'*/): string | null => {
   if (!logoUrl) return null;
   
   // Puedes usar transformaciones de imagen de Supabase si las configuras

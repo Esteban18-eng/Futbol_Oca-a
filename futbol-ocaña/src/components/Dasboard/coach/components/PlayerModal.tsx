@@ -747,7 +747,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                                         <input
                                             type="text"
                                             name="eps"
-                                            value={player.eps}
+                                            value={player.eps || ''}
                                             onChange={onInputChange}
                                             className="player-form-input"
                                         />
