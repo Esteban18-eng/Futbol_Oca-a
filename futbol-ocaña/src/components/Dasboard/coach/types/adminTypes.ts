@@ -63,13 +63,11 @@ export interface AddSchoolModalProps {
 export interface AdminPlayerItemProps {
   player: Jugador;
   onClick: (player: Jugador) => void;
-  // NUEVAS PROPS AGREGADAS:
   onShowPeaceAndSafe: (player: Jugador) => void;
   onEditPlayer: (player: Jugador) => void;
   onDeletePlayer: (player: Jugador) => void;
 }
 
-// En adminTypes.ts, actualiza AdminPlayerModalProps:
 export interface AdminPlayerModalProps {
   player: Jugador;
   categorias: Categoria[];
@@ -82,3 +80,104 @@ export interface AdminPlayerModalProps {
   onDeletePlayer: (player: Jugador) => void;
   onUpdatePlayerSchool: (playerId: string, escuelaId: string) => Promise<void>;
 }
+
+// ============ INTERFACES PARA LOGOS ============
+
+export interface UploadLogoModalProps {
+  show: boolean;
+  escuelaId: string;
+  escuelaNombre: string;
+  currentLogoUrl?: string | null;
+  onClose: () => void;
+  onUploadSuccess: (logoUrl: string) => void;
+  onDeleteSuccess: () => void;
+}
+
+export interface DocumentLogoConfig {
+  showLogo: boolean;
+  position: 'watermark' | 'header' | 'corner' | 'none';
+  opacity: number;
+  size: 'small' | 'medium' | 'large';
+}
+
+export interface CreateSchoolData {
+  nombre: string;
+  logoFile?: File | null;
+}
+
+// ============ INTERFACES PARA DOCUMENTOS ============
+
+export interface PeaceAndSafeDocumentProps {
+  player: Jugador;
+  escuela?: Escuela;  // Escuela ya incluye logo_url y logo_file_type
+  logoConfig?: DocumentLogoConfig;
+  onGenerate?: () => void;
+  onClose?: () => void;
+}
+
+export interface TransferDocumentProps {
+  player: Jugador;
+  fromEscuela?: Escuela;
+  toEscuela?: Escuela;
+  logoConfig?: DocumentLogoConfig;
+  onGenerate?: () => void;
+  onClose?: () => void;
+}
+
+// ============ INTERFACES PARA MANEJO DE LOGOS ============
+
+export interface LogoUploadData {
+  escuelaId: string;
+  file: File;
+  onSuccess?: (logoUrl: string) => void;
+  onError?: (error: string) => void;
+}
+
+export interface LogoDeleteData {
+  escuelaId: string;
+  onSuccess?: () => void;
+  onError?: (error: string) => void;
+}
+
+export interface SchoolLogoStatus {
+  escuelaId: string;
+  hasLogo: boolean;
+  logoUrl: string | null;
+  fileType: string | null;
+}
+
+// ============ INTERFACES PARA COMPONENTES ============
+
+export interface SchoolLogoPreviewProps {
+  escuela: Escuela;  // Usa Escuela directamente
+  size?: number;
+  className?: string;
+  onClick?: () => void;
+}
+
+export interface DocumentLogoOverlayProps {
+  logoUrl: string;
+  type: 'watermark' | 'header' | 'corner';
+  opacity?: number;
+  size?: 'small' | 'medium' | 'large';
+}
+
+// ============ INTERFACES PARA CONFIGURACIÓN ============
+
+export interface LogoConfiguration {
+  enabled: boolean;
+  defaultPosition: 'header' | 'watermark';
+  defaultOpacity: number;
+  defaultSize: 'medium';
+  allowedFileTypes: string[];
+  maxFileSizeMB: number;
+  storageBucket: string;
+}
+
+// ============ TIPO DE AYUDA PARA COMPATIBILIDAD ============
+
+// Si necesitas un tipo con campos opcionales para formularios, usa:
+export type PartialEscuela = Partial<Escuela> & {
+  id: string;
+  nombre: string;
+};

@@ -1,5 +1,8 @@
-import React from 'react';
+// PeaceAndSafeModal.tsx - MODIFICADO
+import React, { useState, useEffect } from 'react';
 import { PeaceAndSafeData } from '../types/peaceAndSafeTypes';
+import { DocumentLogoService } from '../../../../services/documentLogoService';
+import { formatDateForDocument } from '../../../../utils/logoUtils';
 
 interface PeaceAndSafeModalProps {
   isOpen: boolean;
@@ -9,6 +12,7 @@ interface PeaceAndSafeModalProps {
     name: string;
     schoolName: string;
     id: string;
+    escuelaId?: string; // AGREGAR ESTO
   };
 }
 
@@ -18,18 +22,55 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
   onGenerate,
   playerData
 }) => {
-  const [formData, setFormData] = React.useState<PeaceAndSafeData>({
+  const [formData, setFormData] = useState<PeaceAndSafeData>({
     playerName: playerData.name,
     schoolName: playerData.schoolName,
     coachName: '',
     presidentName: '',
     currentDate: new Date().toISOString().split('T')[0],
-    playerId: playerData.id
+    playerId: playerData.id,
+    includeLogo: true, // NUEVO: Incluir logo por defecto
+    logoPosition: 'header' as const,
+    escuelaId: playerData.escuelaId,
+    observaciones: '',
+    motivo: 'Traslado voluntario',
+    ciudad: 'Ocaña'
   });
+
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [loadingLogo, setLoadingLogo] = useState(false);
+
+  // Cargar logo cuando se abre el modal
+  useEffect(() => {
+    const loadLogo = async () => {
+      if (isOpen) {
+        setLoadingLogo(true);
+        try {
+          if (playerData.escuelaId) {
+            // Obtener logo de la escuela específica
+            const logo = await DocumentLogoService.getEscuelaLogo(playerData.escuelaId);
+            setLogoUrl(logo);
+          } else {
+            // Obtener logo de la escuela del usuario actual
+            const logo = await DocumentLogoService.getCurrentUserEscuelaLogo();
+            setLogoUrl(logo);
+          }
+        } catch (error) {
+          console.error('Error cargando logo:', error);
+        } finally {
+          setLoadingLogo(false);
+        }
+      }
+    };
+
+    if (isOpen) {
+      loadLogo();
+    }
+  }, [isOpen, playerData.escuelaId]);
 
   const modalRef = React.useRef<HTMLDivElement>(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -37,7 +78,7 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
     }));
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!formData.coachName || !formData.presidentName) {
       alert('Por favor complete los nombres del entrenador y presidente');
       return;
@@ -48,33 +89,46 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
       return;
     }
     
-    onGenerate(formData);
+    // Generar PDF con logo
+    try {
+      const fechaFormateada = formatDateForDocument(formData.currentDate);
+      const doc = await DocumentLogoService.generatePeaceAndSafePDF(
+        formData.playerName,
+        formData.schoolName,
+        formData.coachName,
+        formData.presidentName,
+        fechaFormateada,
+        formData.includeLogo,
+        formData.logoPosition
+      );
+
+      // Guardar PDF
+      const fileName = `paz-y-salvo-${formData.playerName.replace(/\s+/g, '-')}-${Date.now()}.pdf`;
+      doc.save(fileName);
+      
+      // Llamar al callback
+      onGenerate(formData);
+      
+    } catch (error) {
+      console.error('Error generando PDF:', error);
+      alert('Error generando el documento. Por favor intente nuevamente.');
+    }
   };
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Solo cerrar si se hace clic directamente en el backdrop (no en el contenido del modal)
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Prevenir que el evento Escape cierre el modal si estamos escribiendo
     if (e.key === 'Escape') {
       e.stopPropagation();
     }
   };
 
-  const formatDateForDisplay = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day} / ${month} / ${year}`;
-  };
-
-  // Efecto para manejar el foco y evitar que el modal se cierre con Escape
-  React.useEffect(() => {
+  // Efecto para manejar el foco
+  useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
         e.stopPropagation();
@@ -83,7 +137,6 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape, true);
-      // Enfocar el primer input cuando se abre el modal
       const firstInput = modalRef.current?.querySelector('input');
       firstInput?.focus();
     }
@@ -110,7 +163,7 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
       <div 
         className="modal-dialog modal-xl"
         ref={modalRef}
-        onClick={(e) => e.stopPropagation()} // Prevenir que el clic se propague al backdrop
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-content">
           <div className="modal-header bg-primary text-white">
@@ -130,6 +183,67 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
             <div className="row">
               <div className="col-md-6">
                 <h6 className="text-primary mb-3">Información Requerida</h6>
+                
+                {/* Información de logo */}
+                <div className="logo-info-card alert alert-light mb-3">
+                  <div className="d-flex align-items-center">
+                    <div className="me-3">
+                      {loadingLogo ? (
+                        <div className="spinner-border spinner-border-sm text-primary" role="status">
+                          <span className="visually-hidden">Cargando...</span>
+                        </div>
+                      ) : logoUrl ? (
+                        <img 
+                          src={logoUrl} 
+                          alt="Logo escuela" 
+                          style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+                          className="border rounded"
+                        />
+                      ) : (
+                        <div className="text-muted" style={{ width: '40px', height: '40px', border: '1px dashed #ccc', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <i className="fas fa-image"></i>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-grow-1">
+                      <small>
+                        <strong>Logo de la escuela:</strong> {logoUrl ? 'Disponible' : 'No disponible'}
+                        <br />
+                        <span className="text-muted">Aparecerá en el documento generado</span>
+                      </small>
+                    </div>
+                    <div className="form-check form-switch">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id="includeLogo"
+                        name="includeLogo"
+                        checked={formData.includeLogo}
+                        onChange={(e) => setFormData(prev => ({ ...prev, includeLogo: e.target.checked }))}
+                      />
+                      <label className="form-check-label" htmlFor="includeLogo">
+                        Incluir logo
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <label className="form-label fw-bold">Posición del logo</label>
+                    <select
+                      className="form-select"
+                      name="logoPosition"
+                      value={formData.logoPosition}
+                      onChange={handleInputChange}
+                      disabled={!formData.includeLogo}
+                    >
+                      <option value="header">Encabezado</option>
+                      <option value="corner">Esquina superior</option>
+                      <option value="watermark">Marca de agua</option>
+                    </select>
+                  </div>
+                </div>
                 
                 <div className="mb-3">
                   <label className="form-label fw-bold">Nombre del Jugador *</label>
@@ -200,6 +314,42 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
                   />
                 </div>
                 
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Ciudad</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="ciudad"
+                    value={formData.ciudad}
+                    onChange={handleInputChange}
+                    placeholder="Ciudad donde se expide"
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Motivo</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="motivo"
+                    value={formData.motivo}
+                    onChange={handleInputChange}
+                    placeholder="Motivo del paz y salvo"
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Observaciones</label>
+                  <textarea
+                    className="form-control"
+                    name="observaciones"
+                    value={formData.observaciones}
+                    onChange={handleInputChange}
+                    rows={3}
+                    placeholder="Observaciones adicionales..."
+                  />
+                </div>
+                
                 <div className="alert alert-info">
                   <small>
                     <i className="fas fa-info-circle me-2"></i>
@@ -214,6 +364,23 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
                 
                 <div className="peace-safe-preview border rounded p-4 bg-light">
                   <div className="text-center mb-4">
+                    {logoUrl && formData.includeLogo && (
+                      <div className="logo-preview-header mb-2">
+                        <img 
+                          src={logoUrl} 
+                          alt="Logo" 
+                          style={{ 
+                            width: formData.logoPosition === 'watermark' ? '120px' : '50px',
+                            height: formData.logoPosition === 'watermark' ? '120px' : '50px',
+                            objectFit: 'contain',
+                            opacity: formData.logoPosition === 'watermark' ? 0.3 : 1,
+                            float: formData.logoPosition === 'corner' ? 'right' : 'left',
+                            marginRight: formData.logoPosition === 'corner' ? '10px' : '0',
+                            marginLeft: formData.logoPosition === 'corner' ? '0' : '10px'
+                          }}
+                        />
+                      </div>
+                    )}
                     <h5 className="fw-bold text-uppercase mb-1">
                       ESCUELA / CLUB DE FÚTBOL {formData.schoolName || '__________________________'}
                     </h5>
@@ -238,12 +405,21 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
                     </p>
                     
                     <p className="text-justify">
+                      {formData.observaciones && (
+                        <>
+                          <strong>Observaciones:</strong> {formData.observaciones}<br/><br/>
+                        </>
+                      )}
+                    </p>
+                    
+                    <p className="text-justify">
                       Este paz y salvo se expide a solicitud del jugador, con el fin de ser presentado ante la Corporación de Fútbol Ocañero, 
                       entidad encargada de validar y formalizar su traslado conforme a los lineamientos establecidos.
                     </p>
                     
                     <p className="text-justify">
-                      Se firma para constancia en la ciudad de Ocaña, a los {formatDateForDisplay(formData.currentDate)}.
+                      Se firma para constancia en la ciudad de {formData.ciudad || 'Ocaña'}, a los {formatDateForDocument(formData.currentDate)}.
+                      {formData.motivo && ` Motivo: ${formData.motivo}`}
                     </p>
                   </div>
                   
@@ -382,6 +558,15 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
         .btn-success:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+        }
+
+        .logo-info-card {
+          border-left: 4px solid #3498db;
+          background: #f8fafc;
+        }
+
+        .logo-preview-header {
+          min-height: 60px;
         }
 
         @media (max-width: 768px) {

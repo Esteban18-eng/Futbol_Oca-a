@@ -1,4 +1,3 @@
-//supabase.types.ts
 export type Json =
   | string
   | number
@@ -8,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -23,10 +22,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
+          extensions?: Json
           operationName?: string
           query?: string
           variables?: Json
-          extensions?: Json
         }
         Returns: Json
       }
@@ -120,16 +119,22 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          logo_file_type: string | null
+          logo_url: string | null
           nombre: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          logo_file_type?: string | null
+          logo_url?: string | null
           nombre: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          logo_file_type?: string | null
+          logo_url?: string | null
           nombre?: string
         }
         Relationships: []
@@ -145,18 +150,18 @@ export type Database = {
           departamento: string
           departamento_id: string | null
           documento: string
-          eps: string
+          documento_pdf_url: string | null
+          eps: string | null
           escuela_id: string
           fecha_nacimiento: string
+          foto_perfil_url: string | null
           id: string
           nombre: string
           pais: string
           pais_id: string | null
+          registro_civil_url: string | null
           tipo_eps: string
           updated_at: string | null
-          foto_perfil_url: string | null
-          documento_pdf_url: string | null
-          registro_civil_url: string | null
         }
         Insert: {
           activo?: boolean | null
@@ -168,18 +173,18 @@ export type Database = {
           departamento: string
           departamento_id?: string | null
           documento: string
-          eps: string
+          documento_pdf_url?: string | null
+          eps?: string | null
           escuela_id: string
           fecha_nacimiento: string
+          foto_perfil_url?: string | null
           id?: string
           nombre: string
           pais?: string
           pais_id?: string | null
+          registro_civil_url?: string | null
           tipo_eps: string
           updated_at?: string | null
-          foto_perfil_url?: string | null
-          documento_pdf_url?: string | null
-          registro_civil_url?: string | null
         }
         Update: {
           activo?: boolean | null
@@ -191,18 +196,18 @@ export type Database = {
           departamento?: string
           departamento_id?: string | null
           documento?: string
-          eps?: string
+          documento_pdf_url?: string | null
+          eps?: string | null
           escuela_id?: string
           fecha_nacimiento?: string
+          foto_perfil_url?: string | null
           id?: string
           nombre?: string
           pais?: string
           pais_id?: string | null
+          registro_civil_url?: string | null
           tipo_eps?: string
           updated_at?: string | null
-          foto_perfil_url?: string | null
-          documento_pdf_url?: string | null
-          registro_civil_url?: string | null
         }
         Relationships: [
           {
@@ -271,8 +276,12 @@ export type Database = {
           email: string
           escuela_id: string | null
           id: string
+          last_password_reset: string | null
           nombre: string
+          reset_token: string | null
           rol: Database["public"]["Enums"]["user_role"]
+          supabase_password: string | null
+          system_password: string | null
         }
         Insert: {
           activo?: boolean | null
@@ -281,8 +290,12 @@ export type Database = {
           email: string
           escuela_id?: string | null
           id: string
+          last_password_reset?: string | null
           nombre: string
+          reset_token?: string | null
           rol?: Database["public"]["Enums"]["user_role"]
+          supabase_password?: string | null
+          system_password?: string | null
         }
         Update: {
           activo?: boolean | null
@@ -291,8 +304,12 @@ export type Database = {
           email?: string
           escuela_id?: string | null
           id?: string
+          last_password_reset?: string | null
           nombre?: string
+          reset_token?: string | null
           rol?: Database["public"]["Enums"]["user_role"]
+          supabase_password?: string | null
+          system_password?: string | null
         }
         Relationships: [
           {
@@ -309,46 +326,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_coach_club_id: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      get_coach_club_id: { Args: never; Returns: number }
       get_players_for_coach: {
         Args: { coach_id_param: number }
         Returns: {
-          id: number
-          document: string
-          first_name: string
-          last_name: string
-          full_name: string
-          birth_date: string
+          active: boolean
           age: number
+          avatar_url: string
+          birth_date: string
           category: string
           club: string
+          created_at: string
+          document: string
           eps: string
           eps_type: string
-          avatar_url: string
-          active: boolean
-          created_at: string
+          first_name: string
+          full_name: string
+          id: number
+          last_name: string
         }[]
       }
-      simple_hash: {
-        Args: { password: string }
-        Returns: string
-      }
+      simple_hash: { Args: { password: string }; Returns: string }
       validate_login: {
         Args: { doc: string; pass: string }
         Returns: {
-          coach_id: number
-          document: string
-          first_name: string
-          last_name: string
-          full_name: string
-          email: string
-          role: string
           club_id: number
           club_name: string
+          coach_id: number
+          document: string
+          email: string
+          first_name: string
+          full_name: string
+          last_name: string
           phone: string
+          role: string
         }[]
       }
     }

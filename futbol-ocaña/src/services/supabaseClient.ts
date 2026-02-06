@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { Database } from './supabase.types'
+import { Database } from '../components/Dasboard/coach/types/supabase.types'
 
 // Debug: Verificar que las variables se están cargando
 console.log('Variables de entorno:')
@@ -18,23 +18,32 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 
-// Tipos de utilidad basados en los tipos generados
+// ============ TIPOS ACTUALIZADOS ============
+
+// Usa los tipos directamente de Database
+export type Escuela = Database['public']['Tables']['escuelas']['Row']
+
 export type Usuario = Database['public']['Tables']['usuarios']['Row'] & {
-  escuela?: Database['public']['Tables']['escuelas']['Row'] | null
+  escuela?: Escuela | null
 }
-export type UsuarioInsert = Database['public']['Tables']['usuarios']['Insert']
-export type UsuarioUpdate = Database['public']['Tables']['usuarios']['Update']
 
 export type Jugador = Database['public']['Tables']['jugadores']['Row'] & {
   categoria?: Database['public']['Tables']['categorias']['Row']
-  escuela?: Database['public']['Tables']['escuelas']['Row']
+  escuela?: Escuela
 }
-export type JugadorInsert = Database['public']['Tables']['jugadores']['Insert']
-export type JugadorUpdate = Database['public']['Tables']['jugadores']['Update']
 
 export type Categoria = Database['public']['Tables']['categorias']['Row']
-export type Escuela = Database['public']['Tables']['escuelas']['Row']
 export type UserRole = Database['public']['Enums']['user_role']
+
+// Tipos para las nuevas tablas de ubicaciones
+export type Pais = Database['public']['Tables']['paises']['Row']
+export type Departamento = Database['public']['Tables']['departamentos']['Row']
+export type Ciudad = Database['public']['Tables']['ciudades']['Row']
+
+export type UsuarioInsert = Database['public']['Tables']['usuarios']['Insert']
+export type UsuarioUpdate = Database['public']['Tables']['usuarios']['Update']
+export type JugadorInsert = Database['public']['Tables']['jugadores']['Insert']
+export type JugadorUpdate = Database['public']['Tables']['jugadores']['Update']
 
 // ===========================================
 // TIPOS Y FUNCIONES PARA ARCHIVOS
@@ -52,6 +61,205 @@ export interface PlayerFiles {
   documento_pdf?: File | null;
   registro_civil?: File | null;
 }
+
+// ===========================================
+// FUNCIONES PARA LOGOS DE ESCUELAS/EQUIPOS
+// ===========================================
+
+export interface LogoUploadResult {
+  success: boolean;
+  logoUrl?: string;
+  error?: string;
+}
+
+/**
+ * Subir logo de escuela/equipo
+ */
+export const uploadEscuelaLogo = async (escuelaId: string, file: File): Promise<LogoUploadResult> => {
+  try {
+    // Validaciones
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      return {
+        success: false,
+        error: 'Formato no válido. Use JPG, PNG, WEBP o SVG'
+      };
+    }
+
+    // Tamaño máximo: 5MB
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return {
+        success: false,
+        error: 'El logo no puede superar los 5MB'
+      };
+    }
+
+    // Generar nombre único
+    const fileExt = file.name.split('.').pop();
+    const timestamp = Date.now();
+    const fileName = `${escuelaId}_logo_${timestamp}.${fileExt}`;
+    const filePath = `logos/${fileName}`;
+    
+    console.log('🖼️ Subiendo logo para escuela:', escuelaId, fileName);
+    
+    const { error: uploadError } = await supabase.storage
+      .from('team-logos')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+    
+    if (uploadError) {
+      console.error('❌ Error subiendo logo:', uploadError);
+      return { success: false, error: uploadError.message };
+    }
+    
+    // Obtener URL pública
+    const { data: urlData } = supabase.storage
+      .from('team-logos')
+      .getPublicUrl(filePath);
+    
+    const logoUrl = urlData.publicUrl;
+    
+    // Actualizar la tabla escuelas
+    const { error: updateError } = await supabase
+      .from('escuelas')
+      .update({ 
+        logo_url: logoUrl,
+        logo_file_type: file.type
+      })
+      .eq('id', escuelaId);
+    
+    if (updateError) {
+      console.error('❌ Error actualizando escuela:', updateError);
+      
+      // Intentar eliminar el archivo subido
+      try {
+        await supabase.storage
+          .from('team-logos')
+          .remove([filePath]);
+      } catch (deleteError) {
+        console.error('Error limpiando archivo:', deleteError);
+      }
+      
+      return { success: false, error: updateError.message };
+    }
+    
+    console.log('✅ Logo subido exitosamente:', logoUrl);
+    return { success: true, logoUrl };
+    
+  } catch (error: any) {
+    console.error('💥 Error inesperado subiendo logo:', error);
+    return { success: false, error: error.message || 'Error inesperado' };
+  }
+};
+
+/**
+ * Obtener logo de una escuela
+ */
+export const getEscuelaLogoUrl = async (escuelaId: string): Promise<string | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('escuelas')
+      .select('logo_url')
+      .eq('id', escuelaId)
+      .single();
+    
+    if (error) {
+      console.error('❌ Error obteniendo logo:', error);
+      return null;
+    }
+    
+    return data?.logo_url || null;
+  } catch (error) {
+    console.error('💥 Error obteniendo logo:', error);
+    return null;
+  }
+};
+
+/**
+ * Eliminar logo de una escuela
+ */
+export const deleteEscuelaLogo = async (escuelaId: string): Promise<LogoUploadResult> => {
+  try {
+    // Primero obtener el URL actual para extraer el path del archivo
+    const { data: escuelaData, error: fetchError } = await supabase
+      .from('escuelas')
+      .select('logo_url')
+      .eq('id', escuelaId)
+      .single();
+    
+    if (fetchError) {
+      return {
+        success: false,
+        error: fetchError.message
+      };
+    }
+    
+    // Extraer path del archivo desde la URL
+    const logoUrl = escuelaData?.logo_url;
+    if (logoUrl) {
+      try {
+        // Intentar extraer y eliminar el archivo
+        const urlObj = new URL(logoUrl);
+        const pathParts = urlObj.pathname.split('/');
+        const filePath = pathParts.slice(-2).join('/'); // Obtiene "logos/nombre-archivo.ext"
+        
+        if (filePath) {
+          const { error: deleteError } = await supabase.storage
+            .from('team-logos')
+            .remove([filePath]);
+          
+          if (deleteError) {
+            console.warn('⚠️ No se pudo eliminar archivo físico:', deleteError);
+          }
+        }
+      } catch (urlError) {
+        console.warn('⚠️ Error procesando URL del logo:', urlError);
+      }
+    }
+    
+    // Actualizar escuela a null
+    const { error: updateError } = await supabase
+      .from('escuelas')
+      .update({
+        logo_url: null,
+        logo_file_type: null
+      })
+      .eq('id', escuelaId);
+    
+    if (updateError) {
+      return {
+        success: false,
+        error: updateError.message
+      };
+    }
+    
+    return { success: true };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Verificar si una escuela tiene logo
+ */
+export const escuelaTieneLogo = async (escuelaId: string): Promise<boolean> => {
+  try {
+    const logoUrl = await getEscuelaLogoUrl(escuelaId);
+    return !!logoUrl && logoUrl.length > 0;
+  } catch (error) {
+    return false;
+  }
+};
+
+// ===========================================
+// FUNCIONES EXISTENTES (se mantienen igual)
+// ===========================================
 
 // Función para validar tipos de archivo
 export const validateFileType = (file: File, allowedTypes: string[]): boolean => {
@@ -206,9 +414,9 @@ export const uploadRegistroCivilPDF = async (file: File, documento: string): Pro
 // Función para subir múltiples archivos de un jugador
 export const uploadPlayerFiles = async (files: PlayerFiles, documento: string) => {
   const results = {
-    foto_perfil_url: '', // Cambiado de null a string vacío
-    documento_pdf_url: '', // Cambiado de null a string vacío
-    registro_civil_url: '', // Cambiado de null a string vacío
+    foto_perfil_url: '',
+    documento_pdf_url: '',
+    registro_civil_url: '',
     errors: [] as string[]
   };
   
@@ -360,7 +568,7 @@ export const getAllJugadores = async () => {
         }
         
         if (pageData) {
-          allJugadores.push(...(pageData as Jugador[]));
+          allJugadores.push(...(pageData as unknown as Jugador[]));
         }
         
         console.log(`✅ Página ${page + 1}/${totalPages} - ${pageData?.length || 0} jugadores`);
@@ -384,7 +592,7 @@ export const getAllJugadores = async () => {
       if (error) throw error;
       
       console.log(`✅ Jugadores obtenidos: ${data?.length || 0}`);
-      return { data: data as Jugador[] | null, error: null };
+      return { data: data as unknown as Jugador[] | null, error: null };
     }
     
   } catch (catchError) {
@@ -433,7 +641,7 @@ export const getJugadoresByEscuela = async (escuelaId: string) => {
         if (pageError) throw pageError;
         
         if (pageData) {
-          allJugadores.push(...(pageData as Jugador[]));
+          allJugadores.push(...(pageData as unknown as Jugador[]));
         }
         
         console.log(`✅ Escuela - Página ${page + 1}/${totalPages}`);
@@ -457,7 +665,7 @@ export const getJugadoresByEscuela = async (escuelaId: string) => {
       if (error) throw error;
       
       console.log(`✅ Jugadores obtenidos por escuela: ${data?.length || 0}`);
-      return { data: data as Jugador[] | null, error: null };
+      return { data: data as unknown as Jugador[] | null, error: null };
     }
   } catch (catchError) {
     console.error('💥 Error en getJugadoresByEscuela:', catchError);
@@ -491,7 +699,7 @@ export const getUserProfile = async (): Promise<{
     .eq('id', user.id)
     .single()
     
-  return { data, error }
+  return { data: data as unknown as Usuario | null, error }
 }
 
 export const checkUserRole = async (): Promise<UserRole | null> => {
@@ -534,7 +742,7 @@ export const getEscuelas = async () => {
     .select('*')
     .order('nombre', { ascending: true })
   
-  return { data, error }
+  return { data: data as Escuela[] | null, error }
 }
 
 // Función para crear un nuevo jugador
@@ -570,7 +778,7 @@ export const createJugador = async (jugador: JugadorInsert) => {
     }
     
     console.log('✅ Jugador creado exitosamente:', data);
-    return { data: data as Jugador | null, error: null };
+    return { data: data as unknown as Jugador | null, error: null };
     
   } catch (catchError: any) {
     console.error('💥 Error inesperado creando jugador:', catchError);
@@ -591,7 +799,7 @@ export const updateJugador = async (id: string, updates: JugadorUpdate) => {
     `)
     .single()
   
-  return { data: data as Jugador | null, error }
+  return { data: data as unknown as Jugador | null, error }
 }
 
 // =====================================
@@ -615,7 +823,7 @@ export const deactivateJugador = async (id: string) => {
       `)
       .single();
     
-    return { data: data as Jugador | null, error };
+    return { data: data as unknown as Jugador | null, error };
   } catch (catchError) {
     return { data: null, error: catchError };
   }
@@ -689,7 +897,7 @@ export const restoreJugador = async (id: string) => {
       `)
       .single();
     
-    return { data: data as Jugador | null, error };
+    return { data: data as unknown as Jugador | null, error };
   } catch (catchError) {
     return { data: null, error: catchError };
   }
@@ -712,7 +920,7 @@ export const getInactiveJugadores = async (escuelaId?: string) => {
   }
   
   const { data, error } = await query;
-  return { data: data as Jugador[] | null, error };
+  return { data: data as unknown as Jugador[] | null, error };
 };
 
 // =====================================
@@ -730,7 +938,7 @@ export const createUsuario = async (usuario: UsuarioInsert) => {
     `)
     .single()
   
-  return { data: data as Usuario | null, error }
+  return { data: data as unknown as Usuario | null, error }
 }
 
 // Función para actualizar un usuario
@@ -745,7 +953,7 @@ export const updateUsuario = async (id: string, updates: UsuarioUpdate) => {
     `)
     .single()
   
-  return { data: data as Usuario | null, error }
+  return { data: data as unknown as Usuario | null, error }
 }
 
 // Función para obtener todos los usuarios (solo admins)
@@ -758,29 +966,7 @@ export const getAllUsuarios = async () => {
     `)
     .order('nombre', { ascending: true })
   
-  return { data: data as Usuario[] | null, error }
-}
-
-// Tipos para las nuevas tablas de ubicaciones
-export type Pais = {
-  id: string;
-  nombre: string;
-  codigo: string | null;
-  created_at: string | null;
-}
-
-export type Departamento = {
-  id: string;
-  nombre: string;
-  pais_id: string;
-  created_at: string | null;
-}
-
-export type Ciudad = {
-  id: string;
-  nombre: string;
-  departamento_id: string;
-  created_at: string | null;
+  return { data: data as unknown as Usuario[] | null, error }
 }
 
 // Función para obtener todos los países
@@ -841,3 +1027,243 @@ export const updatePlayerFileUrls = async (playerId: string, fileUrls: {
     return { success: false, error: error.message };
   }
 };
+
+export const saveEscuelaLogo = async (
+  escuelaId: string, 
+  file: File): Promise<{
+  success: boolean;
+  logoUrl?: string;
+  error?: string;
+}> => {
+  try {
+    console.log('🖼️ Iniciando upload de logo para escuela:', escuelaId);
+    
+    // 1. Validar archivo
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      return {
+        success: false,
+        error: 'Tipo de archivo no permitido. Use JPG, PNG, WEBP o SVG.'
+      };
+    }
+
+    // 2. Validar tamaño (5MB máximo)
+    const maxSizeMB = 5;
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      return {
+        success: false,
+        error: `El archivo es muy grande. Tamaño máximo: ${maxSizeMB}MB.`
+      };
+    }
+
+    // 3. Generar nombre único para el archivo
+    const timestamp = Date.now();
+    const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
+    const fileName = `logo_${escuelaId}_${timestamp}.${fileExtension}`;
+    const filePath = `escuelas/${escuelaId}/${fileName}`;
+
+    console.log('📁 Subiendo archivo:', {
+      fileName,
+      filePath,
+      fileType: file.type,
+      fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`
+    });
+
+    // 4. Subir a Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('team-logos')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file.type
+      });
+
+    if (uploadError) {
+      console.error('❌ Error subiendo archivo:', uploadError);
+      return {
+        success: false,
+        error: `Error subiendo archivo: ${uploadError.message}`
+      };
+    }
+
+    console.log('✅ Archivo subido exitosamente:', uploadData);
+
+    // 5. Obtener URL pública
+    const { data: urlData } = supabase.storage
+      .from('team-logos')
+      .getPublicUrl(filePath);
+
+    const publicUrl = urlData.publicUrl;
+    console.log('🔗 URL pública generada:', publicUrl);
+
+    // 6. Actualizar la escuela con la URL del logo
+    const { error: updateError } = await supabase
+      .from('escuelas')
+      .update({
+        logo_url: publicUrl,
+        logo_file_type: file.type,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', escuelaId);
+
+    if (updateError) {
+      console.error('❌ Error actualizando escuela:', updateError);
+      
+      // Intentar eliminar el archivo subido
+      try {
+        await supabase.storage
+          .from('team-logos')
+          .remove([filePath]);
+        console.log('🗑️ Archivo eliminado después de error en BD');
+      } catch (deleteError) {
+        console.error('Error eliminando archivo:', deleteError);
+      }
+      
+      return {
+        success: false,
+        error: `Error guardando en base de datos: ${updateError.message}`
+      };
+    }
+
+    console.log('✅ Logo guardado exitosamente en la base de datos');
+    return {
+      success: true,
+      logoUrl: publicUrl
+    };
+
+  } catch (error: any) {
+    console.error('💥 Error inesperado:', error);
+    return {
+      success: false,
+      error: `Error inesperado: ${error.message || 'Error desconocido'}`
+    };
+  }
+};
+
+/**
+ * Obtener logo de una escuela desde la BD
+ */
+export const getEscuelaLogo = async (escuelaId: string): Promise<{
+  logoUrl: string | null;
+  fileType: string | null;
+  escuela: Escuela | null;
+}> => {
+  try {
+    console.log('🔍 Buscando logo para escuela:', escuelaId);
+    
+    const { data, error } = await supabase
+      .from('escuelas')
+      .select('*')
+      .eq('id', escuelaId)
+      .single();
+
+    if (error) {
+      console.error('❌ Error obteniendo escuela:', error);
+      return {
+        logoUrl: null,
+        fileType: null,
+        escuela: null
+      };
+    }
+
+    const escuela = data as Escuela;
+    console.log('✅ Logo encontrado:', {
+      tieneLogo: !!escuela.logo_url,
+      fileType: escuela.logo_file_type
+    });
+
+    return {
+      logoUrl: escuela.logo_url || null,
+      fileType: escuela.logo_file_type || null,
+      escuela
+    };
+
+  } catch (error) {
+    console.error('💥 Error obteniendo logo:', error);
+    return {
+      logoUrl: null,
+      fileType: null,
+      escuela: null
+    };
+  }
+};
+
+/**
+ * Eliminar logo de una escuela
+ */
+export const deleteEscuelaLogo2 = async (escuelaId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> => {
+  try {
+    console.log('🗑️ Eliminando logo de escuela:', escuelaId);
+    
+    // 1. Obtener info de la escuela para saber el archivo
+    const { data: escuelaData, error: fetchError } = await supabase
+      .from('escuelas')
+      .select('logo_url')
+      .eq('id', escuelaId)
+      .single();
+
+    if (fetchError) {
+      return {
+        success: false,
+        error: fetchError.message
+      };
+    }
+
+    const logoUrl = escuelaData?.logo_url;
+    
+    // 2. Si hay logo, extraer path y eliminar del storage
+    if (logoUrl) {
+      try {
+        // Extraer path del archivo desde la URL
+        const urlObj = new URL(logoUrl);
+        const pathParts = urlObj.pathname.split('/');
+        // El path es algo como: "team-logos/escuelas/{escuelaId}/logo_{timestamp}.ext"
+        const filePath = pathParts.slice(pathParts.indexOf('team-logos') + 1).join('/');
+        
+        console.log('📁 Eliminando archivo del storage:', filePath);
+        
+        const { error: deleteError } = await supabase.storage
+          .from('team-logos')
+          .remove([filePath]);
+
+        if (deleteError) {
+          console.warn('⚠️ No se pudo eliminar archivo físico:', deleteError);
+        }
+      } catch (urlError) {
+        console.warn('⚠️ Error procesando URL del logo:', urlError);
+      }
+    }
+
+    // 3. Actualizar la escuela (poner logo_url y logo_file_type en null)
+    const { error: updateError } = await supabase
+      .from('escuelas')
+      .update({
+        logo_url: null,
+        logo_file_type: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', escuelaId);
+
+    if (updateError) {
+      return {
+        success: false,
+        error: updateError.message
+      };
+    }
+
+    console.log('✅ Logo eliminado exitosamente');
+    return { success: true };
+
+  } catch (error: any) {
+    console.error('💥 Error eliminando logo:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+

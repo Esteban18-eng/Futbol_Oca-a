@@ -24,6 +24,7 @@ import AddSchoolModal from './AddSchoolModal';
 import ProfileModal from '../coach/components/ProfileModal';
 import DocumentViewer from '../../shared/components/DocumentViewer';
 import DocumentActionsModal from './DocumentActionsModal';
+import SyncLogosButton from './SyncLogosButton'; // AGREGAR ESTA IMPORTACIÓN
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -63,6 +64,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [showPeaceAndSafeModal, setShowPeaceAndSafeModal] = useState(false);
   const [showEditPlayerModal, setShowEditPlayerModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSyncLogosModal, setShowSyncLogosModal] = useState(false); // AGREGAR ESTE ESTADO
   
   // Estados para jugador seleccionado
   const [selectedPlayer, setSelectedPlayer] = useState<Jugador | null>(null);
@@ -484,6 +486,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
     }
   }, []);
 
+  // Handler para sincronizar logos
+  const handleSyncLogos = useCallback(() => {
+    setShowSyncLogosModal(true);
+  }, []);
+
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
@@ -622,6 +629,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                         </div>
                       </div>
                     </div>
+                    
+                    {/* BOTÓN PARA SINCRONIZAR LOGOS - MODIFICADO */}
+                    <div className="col-md-4">
+                      <div className="stat-card" style={{
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s'
+                      }}
+                      onClick={handleSyncLogos}
+                      onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+                      onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                        <div className="stat-icon">🖼️</div>
+                        <div className="stat-number" style={{ fontSize: '2rem' }}>
+                          <i className="fas fa-sync-alt"></i>
+                        </div>
+                        <div className="stat-label" style={{ fontWeight: 'bold' }}>
+                          Sincronizar Logos
+                        </div>
+                        <div className="stat-subtext" style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                          Asignar logos a escuelas
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -746,6 +777,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
         show={showAddSchoolModal}
         onClose={() => setShowAddSchoolModal(false)}
         onSubmit={handleCreateSchool}
+      />
+
+      {/* Modal de Sincronización de Logos - AGREGAR ESTO */}
+      <SyncLogosButton
+        show={showSyncLogosModal}
+        onClose={() => setShowSyncLogosModal(false)}
       />
     </div>
   );

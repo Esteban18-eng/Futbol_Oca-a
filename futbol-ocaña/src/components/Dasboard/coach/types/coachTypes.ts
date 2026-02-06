@@ -34,7 +34,6 @@ export interface PlayerModalProps {
     onGeneratePeaceAndSafe?: (data: PeaceAndSafeData) => void; // NUEVA PROPIEDAD
 }
 
-// ... (el resto de las interfaces se mantienen igual)
 export interface AddPlayerModalProps {
   show: boolean;
   newPlayer: Partial<Jugador>;
@@ -100,4 +99,96 @@ export interface ProfileModalProps {
   show: boolean;
   userProfile: Usuario | null;
   onClose: () => void;
+}
+
+// ============ INTERFACES PARA LOGOS EN DOCUMENTOS ============
+
+export interface DocumentWithLogoProps {
+  player: Jugador;
+  escuela?: Escuela;  // Usa Escuela directamente (ya incluye logo_url)
+  logoPosition?: 'watermark' | 'header' | 'corner';
+  logoOpacity?: number;
+  logoSize?: 'small' | 'medium' | 'large';
+}
+
+export interface PeaceAndSafeWithLogoProps {
+  player: Jugador;
+  escuela?: Escuela;  // Usa Escuela directamente
+  data: PeaceAndSafeData;
+  logoConfig?: {
+    show: boolean;
+    position: 'watermark' | 'header' | 'corner';
+    opacity: number;
+    size: 'small' | 'medium' | 'large';
+  };
+}
+
+export interface TransferDocumentWithLogoProps {
+  player: Jugador;
+  fromEscuela?: Escuela;  // Usa Escuela directamente
+  toEscuela?: Escuela;    // Usa Escuela directamente
+  transferDate: string;
+  logoConfig?: {
+    show: boolean;
+    position: 'watermark' | 'header' | 'corner';
+    opacity: number;
+    size: 'small' | 'medium' | 'large';
+  };
+}
+
+// ============ INTERFACES PARA VISUALIZACIÓN DE LOGOS ============
+
+export interface LogoDisplayProps {
+  logoUrl: string | null;
+  escuelaNombre: string;
+  type?: 'document' | 'preview' | 'thumbnail';
+  size?: number;
+  className?: string;
+  showPlaceholder?: boolean;
+}
+
+export interface DocumentLogoOverlayProps {
+  logoUrl: string;
+  type: 'watermark' | 'header' | 'corner';
+  opacity?: number;
+  size?: 'small' | 'medium' | 'large';
+}
+
+// ============ INTERFACES PARA MANEJO DE LOGOS ============
+
+export interface LogoUploadState {
+  uploading: boolean;
+  progress: number;
+  error: string | null;
+  success: boolean;
+}
+
+export interface LogoManagementProps {
+  escuelaId: string;
+  escuelaNombre: string;
+  currentLogoUrl: string | null;
+  onLogoUploaded: (logoUrl: string) => void;
+  onLogoDeleted: () => void;
+}
+
+// ============ INTERFACES PARA CONFIGURACIÓN ============
+
+export interface DocumentLogoOptions {
+  enabled: boolean;
+  defaultPosition: 'header' | 'watermark' | 'corner';
+  watermarkOpacity: number;
+  headerSize: 'small' | 'medium' | 'large';
+  showInPDF: boolean;
+  showInPrint: boolean;
+}
+
+// ============ INTERFACES PARA DOCUMENTOS IMPRIMIBLES ============
+
+export interface PrintableDocumentProps {
+  player: Jugador;
+  escuela: Escuela;
+  documentType: 'peace-and-safe' | 'transfer' | 'id-card' | 'registration';
+  logoOptions?: DocumentLogoOptions;
+  onPrintComplete?: () => void;
+  onDownloadComplete?: () => void;
 }
