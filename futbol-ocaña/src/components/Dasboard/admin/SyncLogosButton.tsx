@@ -23,6 +23,7 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
     'Juventus Futbol Club': 'Juventus.jpeg',
     'Tigres de Falcao': 'Tigres de Falcao.jpeg',
     'ACES Internacional Abrego': 'Alianza.PNG',
+    'Alianza Futbol Club' : 'Alianza.PNG',
     
     // Mapeos basados en lo que probablemente corresponde
     'Club Deportivo Ocaña 2000': 'ocana 2000.png',
