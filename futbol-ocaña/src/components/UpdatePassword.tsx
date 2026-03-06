@@ -17,7 +17,13 @@ const UpdatePassword: React.FC = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        console.log('🔍 Verificando sesión en UpdatePassword...');
+        console.log('URL actual:', window.location.href);
+        
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        console.log('Sesión obtenida:', session ? 'Sí' : 'No');
+        console.log('Error de sesión:', sessionError);
         
         if (sessionError) {
           console.error('Error verificando sesión:', sessionError);
@@ -26,12 +32,16 @@ const UpdatePassword: React.FC = () => {
         }
 
         if (!session) {
+          console.log('No hay sesión activa');
           setError('❌ Enlace inválido o expirado. Por favor solicita un nuevo enlace de recuperación.');
+        } else {
+          console.log('Sesión válida encontrada');
         }
       } catch (error: any) {
         console.error('Error en checkSession:', error);
         setError(`Error: ${error.message}`);
       } finally {
+        console.log('Verificación de sesión completada');
         setSessionChecked(true);
       }
     };
@@ -41,6 +51,7 @@ const UpdatePassword: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 Iniciando actualización de contraseña');
     setError('');
     setSuccess('');
 
