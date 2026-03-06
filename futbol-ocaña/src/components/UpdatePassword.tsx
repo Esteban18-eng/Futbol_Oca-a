@@ -15,47 +15,46 @@ const UpdatePassword: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        console.log('🔍 Verificando sesión en UpdatePassword...');
-        console.log('URL actual:', window.location.href);
-        console.log('Hash de URL:', window.location.hash);
-        
-        // Esperar un momento para que Supabase procese el token del hash
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        console.log('Sesión obtenida:', session ? 'Sí' : 'No');
-        if (session) {
-          console.log('User ID:', session.user.id);
-          console.log('Email:', session.user.email);
-        }
-        console.log('Error de sesión:', sessionError?.message);
-        
-        if (sessionError) {
-          console.error('Error verificando sesión:', sessionError);
-          setError('Error verificando sesión. Intenta solicitar un nuevo enlace.');
-          setSessionChecked(true);
-          return;
-        }
+    console.log('🔍 Verificando sesión en UpdatePassword...');
+    console.log('URL actual:', window.location.href);
+    console.log('Hash de URL:', window.location.hash);
 
-        if (!session) {
-          console.log('❌ No hay sesión activa - token expirado o inválido');
-          setError('❌ Enlace inválido o expirado. Por favor solicita un nuevo enlace de recuperación.');
-          setSessionChecked(true);
-        } else {
-          console.log('✅ Sesión válida encontrada - usuario autorizado para cambiar contraseña');
-          setSessionChecked(true);
-        }
-      } catch (error: any) {
-        console.error('💥 Error en checkSession:', error);
-        setError(`Error: ${error.message}`);
+    // Usar onAuthStateChange para monitorear cambios de autenticación
+    // Esto es importante porque Supabase procesa el token del hash de forma asíncrona
+    let sessionFound = false;
+    const timeout = setTimeout(() => {
+      if (!sessionFound) {
+        console.log('❌ Timeout: No se encontró sesión válida');
+        setError('❌ Enlace inválido o expirado. Por favor solicita un nuevo enlace de recuperación.');
         setSessionChecked(true);
       }
-    };
+    }, 3000); // Esperar máximo 3 segundos
 
-    checkSession();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('📢 Evento de autenticación:', event);
+      console.log('Sesión disponible:', session ? 'Sí' : 'No');
+      
+      if (session) {
+        sessionFound = true;
+        clearTimeout(timeout);
+        console.log('✅ Sesión válida encontrada');
+        console.log('User ID:', session.user.id);
+        console.log('Email:', session.user.email);
+        setSessionChecked(true);
+      } else if (event === 'INITIAL_SESSION') {
+        // En INITIAL_SESSION, si no hay sesión, el enlace es inválido
+        sessionFound = true;
+        clearTimeout(timeout);
+        console.log('❌ Usuario no autenticado (INITIAL_SESSION sin sesión)');
+        setError('❌ Enlace inválido o expirado. Por favor solicita un nuevo enlace de recuperación.');
+        setSessionChecked(true);
+      }
+    });
+
+    // Limpiar la suscripción cuando el componente se desmonta
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

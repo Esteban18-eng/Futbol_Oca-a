@@ -311,5 +311,4 @@ export const sendPasswordRecoveryEmail = async (email: string) => {
     console.error('❌ Error enviando email de recuperación:', error);
     return { success: false, error };
   }
-
 };
