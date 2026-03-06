@@ -287,18 +287,29 @@ export const checkUserExistsByEmail = async (email: string) => {
 // Función para enviar email de recuperación de contraseña
 export const sendPasswordRecoveryEmail = async (email: string) => {
   try {
+    // Construir URL de redirección de forma correcta
+    // En producción, usar VITE_APP_URL si está disponible
+    // En desarrollo, usar window.location.origin
+    const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const redirectUrl = `${appUrl}/update-password`;
+    
+    console.log('🔗 URL de redirección para reset:', redirectUrl);
+    console.log('📧 Enviando email de recuperación a:', email);
+    
     const { error } = await supabase.auth.resetPasswordForEmail(
       email.trim(),
       {
-        redirectTo: `${window.location.origin}/update-password`,
+        redirectTo: redirectUrl,
       }
     );
 
     if (error) throw error;
 
+    console.log('✅ Email de recuperación enviado exitosamente');
     return { success: true, error: null };
   } catch (error: any) {
     console.error('❌ Error enviando email de recuperación:', error);
     return { success: false, error };
   }
+
 };

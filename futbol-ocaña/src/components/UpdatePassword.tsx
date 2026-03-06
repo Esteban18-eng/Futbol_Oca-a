@@ -19,29 +19,38 @@ const UpdatePassword: React.FC = () => {
       try {
         console.log('🔍 Verificando sesión en UpdatePassword...');
         console.log('URL actual:', window.location.href);
+        console.log('Hash de URL:', window.location.hash);
+        
+        // Esperar un momento para que Supabase procese el token del hash
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         console.log('Sesión obtenida:', session ? 'Sí' : 'No');
-        console.log('Error de sesión:', sessionError);
+        if (session) {
+          console.log('User ID:', session.user.id);
+          console.log('Email:', session.user.email);
+        }
+        console.log('Error de sesión:', sessionError?.message);
         
         if (sessionError) {
           console.error('Error verificando sesión:', sessionError);
           setError('Error verificando sesión. Intenta solicitar un nuevo enlace.');
+          setSessionChecked(true);
           return;
         }
 
         if (!session) {
-          console.log('No hay sesión activa');
+          console.log('❌ No hay sesión activa - token expirado o inválido');
           setError('❌ Enlace inválido o expirado. Por favor solicita un nuevo enlace de recuperación.');
+          setSessionChecked(true);
         } else {
-          console.log('Sesión válida encontrada');
+          console.log('✅ Sesión válida encontrada - usuario autorizado para cambiar contraseña');
+          setSessionChecked(true);
         }
       } catch (error: any) {
-        console.error('Error en checkSession:', error);
+        console.error('💥 Error en checkSession:', error);
         setError(`Error: ${error.message}`);
-      } finally {
-        console.log('Verificación de sesión completada');
         setSessionChecked(true);
       }
     };
