@@ -99,11 +99,18 @@ export function addWatermark(
  * Convertir fecha a formato legible
  */
 export function formatDateForDocument(dateString?: string): string {
-  const date = dateString ? new Date(dateString) : new Date();
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day} / ${month} / ${year}`;
+  let date: Date;
+  if (dateString) {
+    // Parsear manualmente para evitar problemas de zona horaria
+    const [year, month, day] = dateString.split('-').map(Number);
+    date = new Date(year, month - 1, day);
+  } else {
+    date = new Date();
+  }
+  const dayFormatted = date.getDate().toString().padStart(2, '0');
+  const monthFormatted = (date.getMonth() + 1).toString().padStart(2, '0');
+  const yearFormatted = date.getFullYear();
+  return `${dayFormatted} / ${monthFormatted} / ${yearFormatted}`;
 }
 
 /**

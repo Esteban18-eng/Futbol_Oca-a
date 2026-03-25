@@ -30,7 +30,7 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
     currentDate: new Date().toISOString().split('T')[0],
     playerId: playerData.id,
     includeLogo: true, // NUEVO: Incluir logo por defecto
-    logoPosition: 'header' as const,
+    logoPosition: 'watermark' as const, // CAMBIADO: Por defecto marca de agua
     escuelaId: playerData.escuelaId,
     observaciones: '',
     motivo: 'Traslado voluntario',
@@ -238,9 +238,7 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
                       onChange={handleInputChange}
                       disabled={!formData.includeLogo}
                     >
-                      <option value="header">Encabezado</option>
-                      <option value="corner">Esquina superior</option>
-                      <option value="watermark">Marca de agua</option>
+                      <option value="watermark" defaultChecked>Marca de agua</option>
                     </select>
                   </div>
                 </div>
@@ -364,23 +362,6 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
                 
                 <div className="peace-safe-preview border rounded p-4 bg-light">
                   <div className="text-center mb-4">
-                    {logoUrl && formData.includeLogo && (
-                      <div className="logo-preview-header mb-2">
-                        <img 
-                          src={logoUrl} 
-                          alt="Logo" 
-                          style={{ 
-                            width: formData.logoPosition === 'watermark' ? '120px' : '50px',
-                            height: formData.logoPosition === 'watermark' ? '120px' : '50px',
-                            objectFit: 'contain',
-                            opacity: formData.logoPosition === 'watermark' ? 0.3 : 1,
-                            float: formData.logoPosition === 'corner' ? 'right' : 'left',
-                            marginRight: formData.logoPosition === 'corner' ? '10px' : '0',
-                            marginLeft: formData.logoPosition === 'corner' ? '0' : '10px'
-                          }}
-                        />
-                      </div>
-                    )}
                     <h5 className="fw-bold text-uppercase mb-1">
                       ESCUELA / CLUB DE FÚTBOL {formData.schoolName || '__________________________'}
                     </h5>
@@ -388,6 +369,26 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
                       PAZ Y SALVO DE JUGADOR
                     </h6>
                   </div>
+                  
+                  {/* Logo como marca de agua */}
+                  {logoUrl && formData.includeLogo && formData.logoPosition === 'watermark' && (
+                    <img 
+                      src={logoUrl} 
+                      alt="Logo marca de agua" 
+                      style={{ 
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '120px',
+                        height: '120px',
+                        objectFit: 'contain',
+                        opacity: 0.3,
+                        zIndex: -1,
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  )}
                   
                   <div className="document-content">
                     <p className="text-justify">

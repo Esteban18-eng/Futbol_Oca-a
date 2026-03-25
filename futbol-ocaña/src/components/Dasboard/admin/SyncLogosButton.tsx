@@ -30,7 +30,7 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
     'Selección San Pablo': 'Promesas.png',
     'Athletic Fc': 'Fc Athletic Ocana.png',
     'Rio de Oro Futbol Club': 'Promesas.png',
-    'Club Deportivo Real F Libres': 'Promesas.png',
+    'Club Deportivo Real F Libres': 'REAL fLIBRES.png',
     'Ocaña FC': 'Ocana F.C..png',
   };
 
