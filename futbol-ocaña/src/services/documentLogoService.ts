@@ -1,6 +1,6 @@
 // documentLogoService.ts
 import { jsPDF } from 'jspdf';
-import { supabase } from './supabaseClient';
+import { getEscuelaLogoUrl, supabase } from './supabaseClient';
 
 export interface LogoConfig {
   url: string | null;
@@ -25,22 +25,10 @@ export class DocumentLogoService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      const { data: usuario } = await supabase
-        .from('usuarios')
-        .select('escuela_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!usuario?.escuela_id) return null;
-
-      // Obtener logo de la escuela
-      const { data: escuela } = await supabase
-        .from('escuelas')
-        .select('logo_url')
-        .eq('id', usuario.escuela_id)
-        .single();
-
-      return escuela?.logo_url || null;
+      // Obtener escuela del usuario (sin violar RLS - usando solo Auth)
+      // Nota: Esta función necesita que el escuelaId se pase desde el componente
+      // o se obtenga de otra fuente que no sea la BD
+      return null; // Temporalmente null hasta que se implemente correctamente
     } catch (error) {
       console.error('Error obteniendo logo de escuela:', error);
       return null;
@@ -50,17 +38,18 @@ export class DocumentLogoService {
   /**
    * Obtener logo de una escuela específica
    */
-  static async getEscuelaLogo(escuelaId: string): Promise<string | null> {
+  static async getEscuelaLogo(escuelaId?: string): Promise<string | null> {
     try {
-      const { data: escuela } = await supabase
-        .from('escuelas')
-        .select('logo_url')
-        .eq('id', escuelaId)
-        .single();
-
-      return escuela?.logo_url || null;
+      if (!escuelaId) {
+        console.log('⚠️ getEscuelaLogo: escuelaId es null/undefined');
+        return null;
+      }
+      console.log('🔍 Buscando logo para escuelaId:', escuelaId);
+      const logoUrl = await getEscuelaLogoUrl(escuelaId);
+      console.log('📸 Logo encontrado:', logoUrl);
+      return logoUrl;
     } catch (error) {
-      console.error('Error obteniendo logo de escuela:', error);
+      console.error('❌ Error obteniendo logo de escuela:', error);
       return null;
     }
   }
@@ -123,14 +112,18 @@ export class DocumentLogoService {
     presidentName: string,
     fecha: string,
     includeLogo: boolean = true,
-    logoPosition: 'header' | 'watermark' | 'corner' = 'header'
+    logoPosition: 'header' | 'watermark' | 'corner' = 'header',
+    escuelaId?: string
   ): Promise<jsPDF> {
     const doc = new jsPDF();
     
     // Obtener logo si está habilitado
     let logoUrl: string | null = null;
     if (includeLogo) {
-      logoUrl = await this.getCurrentUserEscuelaLogo();
+      logoUrl = await this.getEscuelaLogo(escuelaId);
+      if (!logoUrl) {
+        logoUrl = await this.getCurrentUserEscuelaLogo();
+      }
     }
 
     // Agregar logo si existe
@@ -263,6 +256,101 @@ export class DocumentLogoService {
       doc.text(line, 20, yPosition, { maxWidth: 170 });
       yPosition += 6;
     });
+
+    return doc;
+  }
+
+  /**
+   * Generar PDF con firma del admin para transferencia
+   */
+  static generateTransferPDFWithAdminSignature(
+    playerName: string,
+    fromSchool: string,
+    toInstitution: string,
+    fecha: string,
+    adminSignatureUrl?: string | null,
+    adminName?: string
+  ): jsPDF {
+    const doc = new jsPDF();
+    
+    // Logo de la corporación
+    const corporacionLogo = this.getCorporacionLogo();
+    if (corporacionLogo) {
+      this.addLogoToPDF(doc, {
+        url: corporacionLogo,
+        position: 'header',
+        x: 20,
+        y: 15,
+        width: 40,
+        height: 40
+      });
+    }
+
+    // Configuración del documento
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CORPORACIÓN DE FÚTBOL OCAÑERO', 105, 30, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CERTIFICADO DE TRANSFERENCIA DE JUGADOR', 105, 40, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    const textos = [
+      `La Corporación de Fútbol Ocañero certifica que el jugador ${playerName},`,
+      `identificado en nuestros registros deportivos, se encuentra paz y salvo con esta`,
+      `institución y no presenta obligaciones pendientes que restrinjan su movilidad`,
+      `entre escuelas o clubes formativos.`,
+      ``,
+      `En consecuencia, la Corporación autoriza de manera oficial la transferencia del`,
+      `jugador desde la escuela o club ${fromSchool} hacia la institución deportiva`,
+      `${toInstitution}, garantizando así la continuidad de su proceso formativo y`,
+      `deportivo.`,
+      ``,
+      `Este certificado se expide a solicitud de la parte interesada para los fines que`,
+      `estime convenientes.`,
+      ``,
+      `Dado en Ocaña, a los ${fecha}.`,
+      ``,
+      ``,
+    ];
+
+    let yPosition = 60;
+    textos.forEach(line => {
+      if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      doc.text(line, 20, yPosition, { maxWidth: 170 });
+      yPosition += 6;
+    });
+
+    // Agregar firma del admin si disponible
+    if (adminSignatureUrl) {
+      try {
+        // Agregar la firma del admin a la izquierda
+        doc.addImage(adminSignatureUrl, 'PNG', 20, yPosition + 5, 45, 30);
+        yPosition += 35;
+      } catch (error) {
+        console.warn('Error agregando firma del admin:', error);
+        // Continuar sin firma si hay error
+      }
+    }
+
+    // Agregar línea de firma
+    yPosition += 5;
+    doc.setDrawColor(0);
+    doc.line(20, yPosition, 70, yPosition);
+    
+    // Nombre del admin
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(adminName || 'Corporación de Fútbol Ocañero', 20, yPosition + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Dirección Administrativa', 20, yPosition + 10);
 
     return doc;
   }

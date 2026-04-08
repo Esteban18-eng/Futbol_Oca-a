@@ -21,6 +21,7 @@ import EditPlayerModal from './EditPlayerModal';
 import AddAdminModal from './AddAdminModal';
 import AddCoachModal from './AddCoachModal';
 import AddSchoolModal from './AddSchoolModal';
+import AdminSignatureModal from './AdminSignatureModal';
 import ProfileModal from '../coach/components/ProfileModal';
 import DocumentViewer from '../../shared/components/DocumentViewer';
 import DocumentActionsModal from './DocumentActionsModal';
@@ -65,6 +66,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [showEditPlayerModal, setShowEditPlayerModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSyncLogosModal, setShowSyncLogosModal] = useState(false); // AGREGAR ESTE ESTADO
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
   
   // Estados para jugador seleccionado
   const [selectedPlayer, setSelectedPlayer] = useState<Jugador | null>(null);
@@ -180,6 +182,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const handleAddSchool = useCallback(() => {
     setShowHamburgerMenu(false);
     setShowAddSchoolModal(true);
+  }, []);
+
+  const handleViewSignatureSettings = useCallback(() => {
+    setShowHamburgerMenu(false);
+    setShowSignatureModal(true);
   }, []);
 
   // Handlers del Sidebar
@@ -516,6 +523,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
         onAddAdmin={handleAddAdmin}
         onAddCoach={handleAddCoach}
         onAddSchool={handleAddSchool}
+        onViewSignatureSettings={handleViewSignatureSettings}
         onLogout={onLogout}
         hamburgerMenuRef={hamburgerMenuRef}
       />
@@ -783,6 +791,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       <SyncLogosButton
         show={showSyncLogosModal}
         onClose={() => setShowSyncLogosModal(false)}
+      />
+
+      {/* Modal de Configuración de Firma del Admin */}
+      <AdminSignatureModal
+        show={showSignatureModal}
+        onHide={() => setShowSignatureModal(false)}
+        adminId={currentUser.id}
       />
     </div>
   );

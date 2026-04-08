@@ -46,15 +46,9 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
       if (isOpen) {
         setLoadingLogo(true);
         try {
-          if (playerData.escuelaId) {
-            // Obtener logo de la escuela específica
-            const logo = await DocumentLogoService.getEscuelaLogo(playerData.escuelaId);
-            setLogoUrl(logo);
-          } else {
-            // Obtener logo de la escuela del usuario actual
-            const logo = await DocumentLogoService.getCurrentUserEscuelaLogo();
-            setLogoUrl(logo);
-          }
+          // Obtener logo de la escuela del jugador / escuela actual
+          const logo = await DocumentLogoService.getEscuelaLogo(playerData.escuelaId);
+          setLogoUrl(logo);
         } catch (error) {
           console.error('Error cargando logo:', error);
         } finally {
@@ -99,7 +93,8 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
         formData.presidentName,
         fechaFormateada,
         formData.includeLogo,
-        formData.logoPosition
+        formData.logoPosition,
+        playerData.escuelaId
       );
 
       // Guardar PDF

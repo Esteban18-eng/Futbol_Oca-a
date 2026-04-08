@@ -15,6 +15,7 @@ export interface AdminHeaderProps {
   onAddAdmin: () => void;
   onAddCoach: () => void;
   onAddSchool: () => void;
+  onViewSignatureSettings: () => void;
   onLogout: () => void;
   hamburgerMenuRef: React.RefObject<HTMLDivElement>;
 }

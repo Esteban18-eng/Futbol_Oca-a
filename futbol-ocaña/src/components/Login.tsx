@@ -407,35 +407,6 @@ const Login: React.FC = () => {
                 </small>
               </div>
             </div>
-
-            {process.env.NODE_ENV === 'development' && (
-              <div className="mt-3">
-                <details className="border rounded p-2">
-                  <summary className="text-muted" style={{ cursor: 'pointer', fontSize: '0.8rem' }}>
-                    🔧 Información de desarrollo
-                  </summary>
-                  <div className="mt-2">
-                    <small className="text-muted">
-                      <div>NODE_ENV: {process.env.NODE_ENV}</div>
-                      <div>Supabase URL: {import.meta.env.VITE_SUPABASE_URL ? 'Configurada' : 'No configurada'}</div>
-                      <div className="mt-1">
-                        <button 
-                          className="btn btn-sm btn-outline-secondary"
-                          onClick={() => {
-                            setFormData({
-                              email: 'admin@futbolocañero.com',
-                              password: 'admin123'
-                            });
-                          }}
-                        >
-                          Rellenar datos de prueba
-                        </button>
-                      </div>
-                    </small>
-                  </div>
-                </details>
-              </div>
-            )}
           </>
         ) : (
           <>

@@ -905,7 +905,8 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                 playerData={{
                     name: player.nombre + ' ' + player.apellido,
                     schoolName: escuelas.find(esc => esc.id === player.escuela_id)?.nombre || 'Sin escuela',
-                    id: player.id
+                    id: player.id,
+                    escuelaId: player.escuela_id
                 }}
             />
         </div>

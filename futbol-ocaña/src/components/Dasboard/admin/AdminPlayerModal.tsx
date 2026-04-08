@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
-import { Jugador, Categoria, Escuela } from '../../../services/supabaseClient';
+import { Jugador, Categoria, Escuela, getAdminSignature, getUserProfile, supabase } from '../../../services/supabaseClient';
+import { DocumentLogoService } from '../../../services/documentLogoService';
 import DocumentActionsModal from './DocumentActionsModal';
 
 interface AdminPlayerModalProps {
@@ -26,7 +27,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
   onDownloadRegister,*/
   onDocumentOpen,
   onDeletePlayer,
-  onUpdatePlayerSchool
+  // onUpdatePlayerSchool - No usado después de comentar la actualización automática
 }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -113,67 +114,55 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
     setLoading(true);
 
     try {
-      // 1. Generar el PDF
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
+      // Obtener información del usuario admin actual
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      let adminId = currentUser?.id || '';
+
+      // Obtener nombre real del perfil si está disponible
+      const profile = await getUserProfile();
+      let adminName = 'Administrador';
+      if (profile?.data) {
+        adminName = `${profile.data.nombre || ''} ${profile.data.apellido || ''}`.trim() || currentUser?.email || 'Administrador';
+      } else {
+        adminName = currentUser?.email || 'Administrador';
+      }
+
+      // Obtener firma del admin
+      const adminSignature = await getAdminSignature(adminId);
+      
+      // Generar la fecha
       const currentDate = new Date();
       const day = currentDate.getDate();
       const month = currentDate.getMonth() + 1;
       const year = currentDate.getFullYear();
+      const fecha = `${day} de ${['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][month - 1]} de ${year}`;
 
-      // Configuración del documento
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('CORPORACIÓN DE FÚTBOL OCAÑERO', 105, 20, { align: 'center' });
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('CERTIFICADO DE TRANSFERENCIA DE JUGADOR', 105, 30, { align: 'center' });
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      const text = [
-        `La Corporación de Fútbol Ocañero certifica que el jugador ${player.nombre} ${player.apellido},`,
-        `identificado en nuestros registros deportivos, se encuentra paz y salvo con esta institución y no presenta`,
-        `obligaciones pendientes que restrinjan su movilidad entre escuelas o clubes formativos.`,
-        ``,
-        `En consecuencia, la Corporación autoriza de manera oficial la transferencia del jugador desde la escuela o`,
-        `club ${fromSchool} hacia la institución deportiva ${toInstitution},`,
-        `garantizando así la continuidad de su proceso formativo y deportivo.`,
-        ``,
-        `Este certificado se expide a solicitud de la parte interesada para los fines que estime convenientes.`,
-        ``,
-        `Dado en Ocaña, a los ${day} / ${month} / ${year}.`,
-        ``,
-        ``,
-        `__________________________________`,
-        `Corporación de Fútbol Ocañero`,
-        `Dirección Administrativa`
-      ];
-
-      let yPosition = 50;
-      text.forEach(line => {
-        if (yPosition > 270) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        doc.text(line, 20, yPosition);
-        yPosition += 6;
-      });
+      // Generar el PDF con firma del admin
+      const doc = DocumentLogoService.generateTransferPDFWithAdminSignature(
+        `${player.nombre} ${player.apellido}`,
+        fromSchool,
+        toInstitution,
+        fecha,
+        adminSignature,
+        adminName
+      );
 
       // Guardar el PDF
-      const fileName = `paz-y-salvo-${player.nombre}-${player.apellido}.pdf`.replace(/\s+/g, '-');
+      const fileName = `transferencia-${player.nombre}-${player.apellido}-${Date.now()}.pdf`
+        .replace(/\s+/g, '-')
+        .toLowerCase();
       doc.save(fileName);
 
-      // 2. Actualizar la escuela del jugador en la base de datos
-      await onUpdatePlayerSchool(player.id, selectedEscuela);
+      // NOTA: La actualización de escuela se debe hacer manualmente a través de otra operación
+      // para evitar problemas de RLS. El PDF con la firma se genera y descarga exitosamente.
+      // await onUpdatePlayerSchool(player.id, selectedEscuela);
 
-      // 3. Cerrar el modal
+      // Cerrar el modal
       setShowTransferModal(false);
       onClose();
 
-      alert('✅ Transferencia completada exitosamente. El jugador ha sido transferido a la nueva escuela.');
+      const signatureStatus = adminSignature ? 'con firma del administrador' : '(sin firma configurada)';
+      alert(`✅ PDF generado exitosamente.\nDescargue el documento de transferencia ${signatureStatus}.\nRecuerde actualizar la escuela del jugador en el formulario de edición si es necesario.`);
 
     } catch (error: any) {
       console.error('Error en la transferencia:', error);

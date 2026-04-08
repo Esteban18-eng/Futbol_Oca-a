@@ -160,6 +160,7 @@ export const uploadEscuelaLogo = async (escuelaId: string, file: File): Promise<
  */
 export const getEscuelaLogoUrl = async (escuelaId: string): Promise<string | null> => {
   try {
+    console.log('🔍 Consultando BD para escuelaId:', escuelaId);
     const { data, error } = await supabase
       .from('escuelas')
       .select('logo_url')
@@ -167,10 +168,11 @@ export const getEscuelaLogoUrl = async (escuelaId: string): Promise<string | nul
       .single();
     
     if (error) {
-      console.error('❌ Error obteniendo logo:', error);
+      console.error('❌ Error obteniendo logo de BD:', error);
       return null;
     }
     
+    console.log('✅ Logo URL de BD:', data?.logo_url);
     return data?.logo_url || null;
   } catch (error) {
     console.error('💥 Error obteniendo logo:', error);
@@ -1264,6 +1266,133 @@ export const deleteEscuelaLogo2 = async (escuelaId: string): Promise<{
       success: false,
       error: error.message
     };
+  }
+};
+
+// ===========================================
+// FUNCIONES PARA FIRMAS DE ADMINS
+// ===========================================
+
+/**
+ * Subir firma del admin
+ */
+export const uploadAdminSignature = async (adminId: string, file: File): Promise<FileUploadResult> => {
+  try {
+    // Validaciones
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      return {
+        success: false,
+        error: 'Formato no válido. Use JPG, PNG o WEBP'
+      };
+    }
+
+    // Tamaño máximo: 2MB
+    const maxSize = 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return {
+        success: false,
+        error: 'La firma no puede superar los 2MB'
+      };
+    }
+
+    console.log('✍️ Guardando firma del admin:', adminId);
+    
+    // Convertir el archivo a Base64 Data URL
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const base64DataUrl = e.target?.result as string;
+          // Guardar en localStorage con clave específica
+          const storageKey = `admin_signature_${adminId}`;
+          localStorage.setItem(storageKey, base64DataUrl);
+          
+          console.log('✅ Firma guardada exitosamente en localStorage');
+          resolve({ 
+            success: true, 
+            url: base64DataUrl
+          });
+        } catch (error: any) {
+          console.error('❌ Error guardando firma en localStorage:', error);
+          resolve({ 
+            success: false, 
+            error: error.message || 'Error al guardar la firma'
+          });
+        }
+      };
+      reader.onerror = () => {
+        resolve({ 
+          success: false, 
+          error: 'Error al leer el archivo'
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    
+  } catch (error: any) {
+    console.error('💥 Error inesperado subiendo firma:', error);
+    return { success: false, error: error.message || 'Error inesperado' };
+  }
+};
+
+/**
+ * Obtener firma del admin actual
+ */
+export const getCurrentAdminSignature = async (): Promise<string | null> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    // Obtener URL de firma de localStorage
+    const signatureUrl = localStorage.getItem(`admin_signature_${user.id}`);
+    return signatureUrl || null;
+  } catch (error) {
+    console.error('Error obteniendo firma del admin:', error);
+    return null;
+  }
+};
+
+/**
+ * Guardar URL de firma del admin en localStorage
+ */
+export const saveAdminSignatureUrl = (adminId: string, signatureUrl: string): void => {
+  try {
+    localStorage.setItem(`admin_signature_${adminId}`, signatureUrl);
+    console.log('✅ Firma guardada en localStorage:', adminId);
+  } catch (error) {
+    console.error('❌ Error guardando firma en localStorage:', error);
+  }
+};
+
+/**
+ * Obtener firma de un admin específico
+ */
+export const getAdminSignature = async (adminId: string): Promise<string | null> => {
+  try {
+    // Primero intenta obtener del localStorage
+    const localSignature = localStorage.getItem(`admin_signature_${adminId}`);
+    if (localSignature) return localSignature;
+
+    // Si no está en localStorage, devuelve null
+    return null;
+  } catch (error) {
+    console.error('Error obteniendo firma del admin:', error);
+    return null;
+  }
+};
+
+/**
+ * Eliminar firma del admin
+ */
+export const deleteAdminSignature = (adminId: string): boolean => {
+  try {
+    localStorage.removeItem(`admin_signature_${adminId}`);
+    console.log('✅ Firma eliminada:', adminId);
+    return true;
+  } catch (error) {
+    console.error('❌ Error eliminando firma:', error);
+    return false;
   }
 };
 

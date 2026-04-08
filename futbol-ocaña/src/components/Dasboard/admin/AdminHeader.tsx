@@ -11,6 +11,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   onAddAdmin,
   onAddCoach,
   onAddSchool,
+  onViewSignatureSettings,
   onLogout,
   hamburgerMenuRef
 }) => {
@@ -88,6 +89,14 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                         onClick={onAddSchool}
                       >
                         🏫 Agregar Escuela
+                      </button>
+                      
+                      <button 
+                        className="btn btn-sm w-100 mb-1 text-start"
+                        onClick={onViewSignatureSettings}
+                        title="Configurar tu firma para incluirla en documentos"
+                      >
+                        ✍️ Configurar Mi Firma
                       </button>
                       
                       <hr className="my-2" />
