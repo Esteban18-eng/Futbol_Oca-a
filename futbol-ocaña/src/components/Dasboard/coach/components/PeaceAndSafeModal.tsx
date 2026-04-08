@@ -93,8 +93,7 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
         formData.presidentName,
         fechaFormateada,
         formData.includeLogo,
-        formData.logoPosition,
-        playerData.escuelaId
+        formData.logoPosition
       );
 
       // Guardar PDF
