@@ -93,7 +93,8 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
         formData.presidentName,
         fechaFormateada,
         formData.includeLogo,
-        formData.logoPosition
+        formData.logoPosition,
+        formData.escuelaId || undefined // Pasar el escuelaId para obtener el logo del equipo
       );
 
       // Guardar PDF
@@ -103,6 +104,8 @@ const PeaceAndSafeModal: React.FC<PeaceAndSafeModalProps> = ({
       // Llamar al callback
       onGenerate(formData);
       
+      // Cerrar modal
+      onClose();
     } catch (error) {
       console.error('Error generando PDF:', error);
       alert('Error generando el documento. Por favor intente nuevamente.');
