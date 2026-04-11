@@ -152,7 +152,7 @@ export type Database = {
           documento: string
           documento_pdf_url: string | null
           eps: string | null
-          escuela_id: string
+          escuela_id: string | null
           fecha_nacimiento: string
           foto_perfil_url: string | null
           id: string
@@ -198,7 +198,7 @@ export type Database = {
           documento?: string
           documento_pdf_url?: string | null
           eps?: string | null
-          escuela_id?: string
+          escuela_id?: string | null
           fecha_nacimiento?: string
           foto_perfil_url?: string | null
           id?: string

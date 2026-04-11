@@ -906,7 +906,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                     name: player.nombre + ' ' + player.apellido,
                     schoolName: escuelas.find(esc => esc.id === player.escuela_id)?.nombre || 'Sin escuela',
                     id: player.id,
-                    escuelaId: player.escuela_id
+                    escuelaId: player.escuela_id ?? undefined
                 }}
             />
         </div>

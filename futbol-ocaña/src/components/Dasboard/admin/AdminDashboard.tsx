@@ -275,7 +275,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
     }
   }, [playerToDelete, players]);
 
-  const handleUpdatePlayerSchool = useCallback(async (playerId: string, escuelaId: string) => {
+  const handleUpdatePlayerSchool = useCallback(async (playerId: string, escuelaId: string | null) => {
     try {
       setIsProcessing(true);
       const { error } = await supabase

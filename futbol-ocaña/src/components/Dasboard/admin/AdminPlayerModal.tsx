@@ -14,7 +14,7 @@ interface AdminPlayerModalProps {
   onDownloadRegister: () => void;
   onDocumentOpen: (url: string, filename: string) => void;
   onDeletePlayer: (player: Jugador) => void;
-  onUpdatePlayerSchool: (playerId: string, escuelaId: string) => Promise<void>;
+  onUpdatePlayerSchool: (playerId: string, escuelaId: string | null) => Promise<void>;
 }
 
 const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
@@ -27,7 +27,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
   onDownloadRegister,*/
   onDocumentOpen,
   onDeletePlayer,
-  // onUpdatePlayerSchool - No usado después de comentar la actualización automática
+  onUpdatePlayerSchool,
 }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -46,6 +46,14 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
     setFromSchool(player.escuela?.nombre || '');
     setSelectedEscuela(player.escuela_id || '');
   }, [player]);
+
+  useEffect(() => {
+    if (selectedEscuela === 'libre') {
+      setToInstitution('Libertad de movimiento');
+    } else if (toInstitution === 'Libertad de movimiento') {
+      setToInstitution('');
+    }
+  }, [selectedEscuela]);
 
   const calculateAge = (birthDate: string) => {
     const today = new Date();
@@ -153,16 +161,20 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
         .toLowerCase();
       doc.save(fileName);
 
-      // NOTA: La actualización de escuela se debe hacer manualmente a través de otra operación
-      // para evitar problemas de RLS. El PDF con la firma se genera y descarga exitosamente.
-      // await onUpdatePlayerSchool(player.id, selectedEscuela);
+      // Actualizar la escuela del jugador automáticamente.
+      const newEscuelaId = selectedEscuela === 'libre' ? null : selectedEscuela;
+      await onUpdatePlayerSchool(player.id, newEscuelaId);
 
       // Cerrar el modal
       setShowTransferModal(false);
       onClose();
 
       const signatureStatus = adminSignature ? 'con firma del administrador' : '(sin firma configurada)';
-      alert(`✅ PDF generado exitosamente.\nDescargue el documento de transferencia ${signatureStatus}.\nRecuerde actualizar la escuela del jugador en el formulario de edición si es necesario.`);
+      const transferMessage = selectedEscuela === 'libre'
+        ? 'El jugador quedó libre y su registro fue actualizado.'
+        : 'La escuela del jugador se actualizó correctamente.';
+
+      alert(`✅ PDF generado exitosamente. ${transferMessage}\nDescargue el documento de transferencia ${signatureStatus}.`);
 
     } catch (error: any) {
       console.error('Error en la transferencia:', error);
@@ -382,7 +394,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Nueva Escuela *</Form.Label>
+              <Form.Label>Nueva Escuela / Libre *</Form.Label>
               <Form.Select 
                 value={selectedEscuela}
                 onChange={(e) => setSelectedEscuela(e.target.value)}
@@ -394,9 +406,10 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
                     {escuela.nombre}
                   </option>
                 ))}
+                <option value="libre">Libre / Sin escuela</option>
               </Form.Select>
               <Form.Text className="text-muted">
-                Seleccione la nueva escuela del jugador
+                Seleccione la nueva escuela o marque al jugador como libre.
               </Form.Text>
             </Form.Group>
 
