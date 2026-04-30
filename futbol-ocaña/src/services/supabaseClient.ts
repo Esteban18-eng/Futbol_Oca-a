@@ -757,6 +757,24 @@ export const createJugador = async (jugador: JugadorInsert) => {
       registro_civil_url: jugador.registro_civil_url || ''
     });
     
+    const { data: existingPlayer, error: existingError } = await supabase
+      .from('jugadores')
+      .select('id')
+      .eq('documento', jugador.documento?.trim() || '')
+      .maybeSingle();
+
+    if (existingError) {
+      console.error('❌ Error verificando jugador existente:', existingError);
+      return { data: null, error: existingError };
+    }
+
+    if (existingPlayer) {
+      return {
+        data: null,
+        error: { message: 'Ya existe un jugador con este documento', code: '23505' }
+      };
+    }
+
     const { data, error } = await supabase
       .from('jugadores')
       .insert({

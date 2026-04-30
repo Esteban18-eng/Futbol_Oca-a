@@ -554,6 +554,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         return;
       }
 
+      const normalizedDocumento = newPlayer.documento?.trim() || '';
+      const normalizedNombre = newPlayer.nombre?.trim() || '';
+      const normalizedApellido = newPlayer.apellido?.trim() || '';
+
+      // Validar que el documento no exista ya en la lista de jugadores
+      const duplicatePlayer = players.find(player => player.documento?.trim() === normalizedDocumento);
+      if (duplicatePlayer) {
+        setError('Ya existe un jugador con este documento');
+        return;
+      }
+
       // Validar que al menos la foto esté seleccionada
       if (!files.foto_perfil) {
         setError('La foto de perfil es obligatoria');
@@ -561,16 +572,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       }
 
       // Subir archivos
-      const uploadResults = await uploadFiles(newPlayer.documento, ['foto_perfil']);
+      const uploadResults = await uploadFiles(normalizedDocumento, ['foto_perfil']);
       
       if (!uploadResults || !isMounted) {
         return;
       }
 
       const playerData = {
-        documento: newPlayer.documento,
-        nombre: newPlayer.nombre,
-        apellido: newPlayer.apellido,
+        documento: normalizedDocumento,
+        nombre: normalizedNombre,
+        apellido: normalizedApellido,
         fecha_nacimiento: newPlayer.fecha_nacimiento,
         pais: newPlayer.pais,
         departamento: newPlayer.departamento,
@@ -615,7 +626,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         setProcessingMessage('');
       }
     }
-  }, [newPlayer, files, uploadFiles, reloadPlayers, resetPlayerForm]);
+  }, [newPlayer, files, uploadFiles, reloadPlayers, resetPlayerForm, players]);
 
   // Función para manejar cambios en edición
   const handleEditInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
