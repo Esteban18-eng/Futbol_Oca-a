@@ -21,6 +21,7 @@ import {
   updateJugador,
   deleteJugador,
   createJugador,
+  getJugadorByDocumento,
   uploadProfilePhoto,
   uploadDocumentPDF,
   uploadRegistroCivilPDF,
@@ -305,7 +306,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     let timeoutId: NodeJS.Timeout;
     let isMounted = true;
 
-    const handleAutoSearch = () => {
+    const handleAutoSearch = async () => {
       if (!selectedDocument.trim() || !isMounted) {
         if (isMounted) setSearchResult(null);
         return;
@@ -313,25 +314,57 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
 
       setIsSearching(true);
       
-      // Buscar el jugador por documento
-      const player = players.find(p => p.documento === selectedDocument.trim());
-      
-      if (!isMounted) return;
-
-      if (player) {
-        setSearchResult({
-          found: true,
-          player: player,
-          message: 'Jugador encontrado'
-        });
-      } else {
-        setSearchResult({
-          found: false,
-          message: 'El documento no está registrado en el sistema'
-        });
+      try {
+        // Primero buscar en la lista local del entrenador
+        const localPlayer = players.find(p => p.documento === selectedDocument.trim());
+        
+        if (localPlayer) {
+          if (!isMounted) return;
+          setSearchResult({
+            found: true,
+            player: localPlayer,
+            message: 'Jugador encontrado'
+          });
+        } else {
+          // Si no está en la lista local, buscar en toda la base de datos
+          const result = await getJugadorByDocumento(selectedDocument.trim());
+          
+          if (!isMounted) return;
+          
+          if (result.error) {
+            console.error('Error buscando jugador:', result.error);
+            setSearchResult({
+              found: false,
+              message: 'Error al buscar el documento'
+            });
+          } else if (result.data) {
+            // El jugador existe pero en otra escuela
+            const schoolName = result.data.escuela?.nombre || 'otra escuela';
+            setSearchResult({
+              found: false,
+              message: `El niño ya está registrado en ${schoolName}`
+            });
+          } else {
+            // El documento no existe en el sistema
+            setSearchResult({
+              found: false,
+              message: 'El documento no está registrado en el sistema'
+            });
+          }
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error en búsqueda automática:', error);
+          setSearchResult({
+            found: false,
+            message: 'Error al buscar el documento'
+          });
+        }
       }
       
-      setIsSearching(false);
+      if (isMounted) {
+        setIsSearching(false);
+      }
     };
 
     if (selectedDocument.trim().length > 0) {
@@ -602,7 +635,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       if (result.error) {
         const error = result.error as any;
         if (error.code === '23505') {
-          setError('Ya existe un jugador con este documento');
+          setError(error.message || 'Ya existe un jugador con este documento');
         } else {
           setError(`Error: ${error.message || 'Error agregando jugador'}`);
         }
@@ -1667,14 +1700,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
                         </div>
                       ) : (
                         <div className="alert alert-warning py-2 px-3">
-                          <h6 className="mb-1">❌ Documento no registrado</h6>
+                          <h6 className="mb-1">
+                            {searchResult.message.includes('ya está registrado') ? '⚠️ Niño ya registrado' : '❌ Documento no registrado'}
+                          </h6>
                           <p className="mb-2">{searchResult.message}</p>
-                          <button 
-                            className="btn btn-sm btn-outline-secondary"
-                            onClick={() => setShowAddModal(true)}
-                          >
-                            Registrar nuevo jugador
-                          </button>
+                          {!searchResult.message.includes('ya está registrado') && (
+                            <button 
+                              className="btn btn-sm btn-outline-secondary"
+                              onClick={() => setShowAddModal(true)}
+                            >
+                              Registrar nuevo jugador
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

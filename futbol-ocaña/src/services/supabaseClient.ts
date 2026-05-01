@@ -806,6 +806,32 @@ export const createJugador = async (jugador: JugadorInsert) => {
   }
 };
 
+// Función para buscar un jugador por documento en toda la base de datos
+export const getJugadorByDocumento = async (documento: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('jugadores')
+      .select(`
+        *,
+        categoria:categorias(*),
+        escuela:escuelas(*)
+      `)
+      .eq('documento', documento.trim())
+      .eq('activo', true)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('❌ Error buscando jugador por documento:', error);
+      return { data: null, error };
+    }
+    
+    return { data: data as unknown as Jugador | null, error: null };
+  } catch (catchError: any) {
+    console.error('💥 Error inesperado buscando jugador:', catchError);
+    return { data: null, error: catchError };
+  }
+};
+
 // Función para actualizar un jugador
 export const updateJugador = async (id: string, updates: JugadorUpdate) => {
   const { data, error } = await supabase
