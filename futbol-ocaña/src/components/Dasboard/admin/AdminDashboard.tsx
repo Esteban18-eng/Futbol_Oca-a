@@ -13,6 +13,7 @@ import {
   getUserProfile
 } from '../../../services/supabaseClient';
 import { getAdminStats, createAdmin, createCoach, createSchool } from '../../../services/adminServices';
+import { getAllEquipos, EquipoRegistro } from '../../../services/teamRegistrationService';
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 import AdminPlayerModal from './AdminPlayerModal';
@@ -39,6 +40,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [filteredPlayers, setFilteredPlayers] = useState<Jugador[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [escuelas, setEscuelas] = useState<Escuela[]>([]);
+  const [teams, setTeams] = useState<EquipoRegistro[]>([]);
+  const [teamLoadError, setTeamLoadError] = useState<string | null>(null);
   
   // Estados para estadísticas
   const [stats, setStats] = useState({
@@ -60,6 +63,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [showAddCoachModal, setShowAddCoachModal] = useState(false);
   const [showAddSchoolModal, setShowAddSchoolModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showTeamsModal, setShowTeamsModal] = useState(false);
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [showDocumentActionsModal, setShowDocumentActionsModal] = useState(false);
   const [showPeaceAndSafeModal, setShowPeaceAndSafeModal] = useState(false);
@@ -87,6 +91,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const hamburgerMenuRef = useRef<HTMLDivElement>(null);
+
+  const getErrorMessage = (error: any): string => {
+    if (!error) return '';
+    if (typeof error === 'string') return error;
+    if (typeof error.message === 'string') return error.message;
+    if (typeof error.error === 'string') return error.error;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -117,6 +133,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
         setCategorias(categoriasResult.data || []);
         setEscuelas(escuelasResult.data || []);
         setStats(statsResult);
+
+        const equiposResult = await getAllEquipos();
+        if (equiposResult.error) {
+          setTeamLoadError(getErrorMessage(equiposResult.error));
+        } else {
+          setTeams(equiposResult.data || []);
+        }
 
       } catch (err: any) {
         console.error('Error loading data:', err);
@@ -167,6 +190,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       setUserProfile(profile.data);
       setShowProfileModal(true);
     }
+  }, []);
+
+  const handleViewTeams = useCallback(async () => {
+    setShowHamburgerMenu(false);
+    const equiposResult = await getAllEquipos();
+    if (equiposResult.error) {
+      setTeamLoadError(getErrorMessage(equiposResult.error));
+      setTeams([]);
+    } else {
+      setTeamLoadError(null);
+      setTeams(equiposResult.data || []);
+    }
+    setShowTeamsModal(true);
   }, []);
 
   const handleAddAdmin = useCallback(() => {
@@ -524,6 +560,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
         onAddCoach={handleAddCoach}
         onAddSchool={handleAddSchool}
         onViewSignatureSettings={handleViewSignatureSettings}
+        onViewTeams={handleViewTeams}
         onLogout={onLogout}
         hamburgerMenuRef={hamburgerMenuRef}
       />
@@ -637,6 +674,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                         </div>
                       </div>
                     </div>
+
+                    <div className="col-md-4">
+                      <div className="stat-card bg-secondary text-white">
+                        <div className="stat-icon">🏅</div>
+                        <div className="stat-number">{teams.length}</div>
+                        <div className="stat-label">Equipos Inscritos</div>
+                      </div>
+                    </div>
                     
                     {/* BOTÓN PARA SINCRONIZAR LOGOS - MODIFICADO */}
                     <div className="col-md-4">
@@ -692,6 +737,63 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
           onDeletePlayer={handleDeletePlayer}
           onUpdatePlayerSchool={handleUpdatePlayerSchool}
         />
+      )}
+
+      {showTeamsModal && (
+        <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-xl modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Equipos Inscritos</h5>
+                <button type="button" className="btn-close" onClick={() => setShowTeamsModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                {teamLoadError && (
+                  <div className="alert alert-warning" role="alert">
+                    No se pudieron cargar los equipos: {teamLoadError}
+                  </div>
+                )}
+
+                {teams.length === 0 && !teamLoadError ? (
+                  <div className="alert alert-light">No hay equipos inscritos actualmente.</div>
+                ) : (
+                  <div className="row g-3">
+                    {teams.map((team) => {
+                      const category = categorias.find((cat) => cat.id === team.categoria_id);
+                      const school = escuelas.find((esc) => esc.id === team.escuela_id);
+                      return (
+                        <div key={team.id} className="col-md-6">
+                          <div className="card h-100 shadow-sm">
+                            <div className="card-body">
+                              <h5 className="card-title mb-2">{team.nombre}</h5>
+                              <p className="card-text mb-1">
+                                <strong>Categoría:</strong> {category?.nombre || 'No disponible'}
+                              </p>
+                              <p className="card-text mb-1">
+                                <strong>Escuela:</strong> {school?.nombre || 'No disponible'}
+                              </p>
+                              <p className="card-text mb-1">
+                                <strong>Estado:</strong> {team.estado}
+                              </p>
+                              <p className="card-text text-muted small mb-0">
+                                Inscrito: {team.created_at ? new Date(team.created_at).toLocaleString() : 'Fecha desconocida'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowTeamsModal(false)}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* NUEVOS MODALES AGREGADOS */}

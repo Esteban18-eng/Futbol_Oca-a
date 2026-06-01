@@ -8,6 +8,7 @@ interface CoachHeaderProps {
   onToggleHamburgerMenu: () => void;
   onViewProfile: () => void;
   onAddPlayer: () => void;
+  onOpenTeamRegistration: () => void;
   onLogout: () => void;
   hamburgerMenuRef: React.RefObject<HTMLDivElement>;
 }
@@ -20,6 +21,7 @@ const CoachHeader: React.FC<CoachHeaderProps> = ({
   onToggleHamburgerMenu,
   /*onViewProfile,*/
   onAddPlayer,
+  onOpenTeamRegistration,
   onLogout,
   hamburgerMenuRef
 }) => {
@@ -99,7 +101,13 @@ const CoachHeader: React.FC<CoachHeaderProps> = ({
                       >
                         ➕ Agregar Jugador
                       </button>
-                      
+                      <button
+                        className="btn btn-secondary w-100 mb-2"
+                        onClick={onOpenTeamRegistration}
+                        aria-label="Inscribir equipo por categoría"
+                      >
+                        🏅 Inscribir Equipo
+                      </button>
                       <hr className="my-2" />
                       
                       <button 

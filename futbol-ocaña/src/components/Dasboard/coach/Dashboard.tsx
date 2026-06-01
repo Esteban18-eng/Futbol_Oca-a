@@ -27,10 +27,17 @@ import {
   uploadRegistroCivilPDF,
   PlayerFiles
 } from '../../../services/supabaseClient';
+import { 
+  createEquipo,
+  getEquiposByEscuela,
+  assignPlayersToEquipo,
+  EquipoRegistro
+} from '../../../services/teamRegistrationService';
 import CoachHeader from './components/CoachHeader';
 import CoachSidebar from './components/CoachSidebar';
 import PlayerModal from './components/PlayerModal';
 import AddPlayerModal from './components/AddPlayerModal';
+import TeamRegistrationModal from './components/TeamRegistrationModal';
 import ProfileModal from './components/ProfileModal';
 import ExcelImportModal from '../../ExcelImportModal';
 import DocumentViewer from '../../shared/components/DocumentViewer';
@@ -116,6 +123,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   const [filteredPlayers, setFilteredPlayers] = useState<Jugador[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [escuelas, setEscuelas] = useState<Escuela[]>([]);
+  const [teams, setTeams] = useState<EquipoRegistro[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState<EquipoRegistro | null>(null);
+  const [teamName, setTeamName] = useState('');
+  const [teamCategoryId, setTeamCategoryId] = useState('');
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [showTeamRegistrationModal, setShowTeamRegistrationModal] = useState(false);
+  const [teamRegistrationMessage, setTeamRegistrationMessage] = useState<string | null>(null);
+  const [teamRegistrationError, setTeamRegistrationError] = useState<string | null>(null);
   
   // Estados para ubicaciones
   const [paises, setPaises] = useState<Pais[]>([]);
@@ -234,6 +249,122 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     };
   }, [currentUser.rol, currentUser.escuela_id]);
 
+  const loadTeams = useCallback(async () => {
+    if (!currentUser.escuela_id) return;
+    try {
+      const result = await getEquiposByEscuela(currentUser.escuela_id);
+      if (result.error) {
+        throw result.error;
+      }
+      setTeams(result.data || []);
+    } catch (err: any) {
+      console.error('Error cargando equipos:', err);
+      setTeamRegistrationError(err.message || 'Error cargando equipos');
+    }
+  }, [currentUser.escuela_id]);
+
+  const openTeamRegistrationModal = useCallback(() => {
+    setTeamRegistrationError(null);
+    setTeamRegistrationMessage(null);
+    setSelectedTeam(null);
+    setTeamName('');
+    setTeamCategoryId('');
+    setSelectedPlayerIds([]);
+    setShowTeamRegistrationModal(true);
+    loadTeams();
+  }, [loadTeams]);
+
+  const handleCreateTeam = useCallback(async (nombre: string, categoriaId: string) => {
+    if (!currentUser.escuela_id) {
+      setTeamRegistrationError('No se ha identificado la escuela del club');
+      return;
+    }
+
+    if (!nombre.trim() || !categoriaId) {
+      setTeamRegistrationError('Ingrese nombre y categoría del equipo');
+      return;
+    }
+
+    try {
+      setTeamRegistrationError(null);
+      setTeamRegistrationMessage('Inscribiendo equipo...');
+
+      const result = await createEquipo(currentUser.escuela_id, nombre, categoriaId);
+      if (result.error) {
+        throw result.error;
+      }
+
+      const createdTeam = result.data;
+      if (createdTeam) {
+        await loadTeams();
+        setSelectedTeam(createdTeam);
+        setTeamName('');
+        setTeamCategoryId(categoriaId);
+        setSelectedPlayerIds([]);
+        setTeamRegistrationMessage('Equipo inscrito correctamente. Ahora seleccione jugadores para asignarlo.');
+      }
+    } catch (err: any) {
+      console.error('Error creando equipo:', err);
+      setTeamRegistrationError(err.message || 'Error creando el equipo');
+      setTeamRegistrationMessage(null);
+    }
+  }, [currentUser.escuela_id, loadTeams]);
+
+  const handleSelectTeam = useCallback((team: EquipoRegistro) => {
+    setSelectedTeam(team);
+    setTeamCategoryId(team.categoria_id);
+    setSelectedPlayerIds([]);
+    setTeamRegistrationError(null);
+    setTeamRegistrationMessage(`Equipo seleccionado: ${team.nombre}`);
+  }, []);
+
+  const handleTogglePlayerSelection = useCallback((playerId: string) => {
+    setSelectedPlayerIds(prev => {
+      if (prev.includes(playerId)) {
+        return prev.filter(id => id !== playerId);
+      }
+      return [...prev, playerId];
+    });
+  }, []);
+
+  const handleAssignPlayers = useCallback(async () => {
+    if (!selectedTeam) {
+      setTeamRegistrationError('Seleccione un equipo para asignar jugadores');
+      return;
+    }
+
+    if (selectedPlayerIds.length === 0) {
+      setTeamRegistrationError('Seleccione al menos un jugador para registrar');
+      return;
+    }
+
+    try {
+      setTeamRegistrationError(null);
+      setTeamRegistrationMessage('Registrando jugadores en el equipo...');
+
+      const result = await assignPlayersToEquipo(selectedTeam.id, selectedPlayerIds);
+      if (result.error) {
+        throw result.error;
+      }
+
+      await reloadPlayers();
+      setSelectedPlayerIds([]);
+      setTeamRegistrationMessage('Jugadores inscritos con participación activa en el torneo.');
+    } catch (err: any) {
+      console.error('Error asignando jugadores al equipo:', err);
+      setTeamRegistrationError(err.message || 'Error asignando jugadores al equipo');
+      setTeamRegistrationMessage(null);
+    }
+  }, [selectedTeam, selectedPlayerIds, currentUser.escuela_id, reloadPlayers]);
+
+  const closeTeamRegistrationModal = useCallback(() => {
+    setShowTeamRegistrationModal(false);
+    setTeamRegistrationError(null);
+    setTeamRegistrationMessage(null);
+    setSelectedTeam(null);
+    setSelectedPlayerIds([]);
+  }, []);
+
   // EFECTO PRINCIPAL - CON CLEANUP COMPLETO
   useEffect(() => {
     let isMounted = true;
@@ -279,6 +410,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         // Cargar jugadores
         if (isMounted) {
           await reloadPlayers();
+          await loadTeams();
         }
 
       } catch (err: any) {
@@ -299,7 +431,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       isMounted = false;
       abortController.abort();
     };
-  }, [currentUser.rol, currentUser.escuela_id, reloadPlayers]);
+  }, [currentUser.rol, currentUser.escuela_id, reloadPlayers, loadTeams]);
 
   // BÚSQUEDA AUTOMÁTICA POR DOCUMENTO (con debounce y cleanup)
   useEffect(() => {
@@ -1601,6 +1733,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         onToggleHamburgerMenu={handleToggleHamburgerMenu}
         onViewProfile={handleViewProfile}
         onAddPlayer={handleAddPlayer}
+        onOpenTeamRegistration={openTeamRegistrationModal}
         onLogout={onLogout}
         hamburgerMenuRef={hamburgerMenuRef}
       />
@@ -1647,6 +1780,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
                 onToggleCategoryDropdown={handleToggleCategoryDropdown}
                 onPlayerClick={handlePlayerClickDetailed}
                 onOpenExcelImport={handleOpenExcelImport}
+                onOpenTeamRegistration={openTeamRegistrationModal}
               />
             </div>
 
@@ -1760,6 +1894,26 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         onFileSelect={handleFileSelect}
         onLoadDepartamentos={loadDepartamentosByPais}
         onLoadCiudades={loadCiudadesByDepartamento}
+      />
+
+      <TeamRegistrationModal
+        show={showTeamRegistrationModal}
+        onClose={closeTeamRegistrationModal}
+        categorias={categorias}
+        players={players}
+        teams={teams}
+        selectedTeam={selectedTeam}
+        teamName={teamName}
+        teamCategoryId={teamCategoryId}
+        selectedPlayerIds={selectedPlayerIds}
+        message={teamRegistrationMessage}
+        error={teamRegistrationError}
+        onCreateTeam={handleCreateTeam}
+        onSelectTeam={handleSelectTeam}
+        onPlayerToggle={handleTogglePlayerSelection}
+        onAssignPlayers={handleAssignPlayers}
+        onChangeTeamName={setTeamName}
+        onChangeTeamCategory={setTeamCategoryId}
       />
 
       {/* Excel Import Modal */}

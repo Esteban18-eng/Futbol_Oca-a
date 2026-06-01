@@ -4,6 +4,7 @@ import PlayerItem from './PlayerItem';
 
 interface CoachSidebarPropsWithImport extends CoachSidebarProps {
   onOpenExcelImport: () => void;
+  onOpenTeamRegistration: () => void;
 }
 
 const CoachSidebar: React.FC<CoachSidebarPropsWithImport> = ({

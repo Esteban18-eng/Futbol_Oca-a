@@ -12,6 +12,7 @@ export interface AdminHeaderProps {
   onToggleDarkMode: () => void;
   onToggleHamburgerMenu: () => void;
   onViewProfile: () => void;
+  onViewTeams: () => void;
   onAddAdmin: () => void;
   onAddCoach: () => void;
   onAddSchool: () => void;

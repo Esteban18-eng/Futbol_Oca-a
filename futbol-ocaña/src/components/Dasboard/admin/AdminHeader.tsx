@@ -7,7 +7,8 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   showHamburgerMenu,
   onToggleDarkMode,
   onToggleHamburgerMenu,
-  /*onViewProfile,*/
+  onViewProfile,
+  onViewTeams,
   onAddAdmin,
   onAddCoach,
   onAddSchool,
@@ -89,6 +90,13 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                         onClick={onAddSchool}
                       >
                         🏫 Agregar Escuela
+                      </button>
+                      
+                      <button 
+                        className="btn btn-sm w-100 mb-1 text-start"
+                        onClick={onViewTeams}
+                      >
+                        🏟️ Ver equipos inscritos
                       </button>
                       
                       <button 
