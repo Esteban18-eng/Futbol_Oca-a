@@ -7,7 +7,6 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
   showHamburgerMenu,
   onToggleDarkMode,
   onToggleHamburgerMenu,
-  onViewProfile,
   onViewTeams,
   onAddAdmin,
   onAddCoach,
