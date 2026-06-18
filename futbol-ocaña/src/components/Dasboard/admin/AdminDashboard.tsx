@@ -13,7 +13,7 @@ import {
   getUserProfile
 } from '../../../services/supabaseClient';
 import { getAdminStats, createAdmin, createCoach, createSchool } from '../../../services/adminServices';
-import { getAllEquipos, EquipoRegistro } from '../../../services/teamRegistrationService';
+import { getAllEquipos, getPlayersByEquipo, deleteEquipo, EquipoRegistro } from '../../../services/teamRegistrationService';
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 import AdminPlayerModal from './AdminPlayerModal';
@@ -42,6 +42,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [escuelas, setEscuelas] = useState<Escuela[]>([]);
   const [teams, setTeams] = useState<EquipoRegistro[]>([]);
   const [teamLoadError, setTeamLoadError] = useState<string | null>(null);
+  const [teamPlayersMap, setTeamPlayersMap] = useState<Record<string, Jugador[]>>({});
+  const [loadingTeamPlayers, setLoadingTeamPlayers] = useState<Record<string, boolean>>({});
   
   // Estados para estadísticas
   const [stats, setStats] = useState({
@@ -203,6 +205,51 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       setTeams(equiposResult.data || []);
     }
     setShowTeamsModal(true);
+  }, []);
+
+  const handleViewPlayers = useCallback(async (equipoId: string) => {
+    setLoadingTeamPlayers(prev => ({ ...prev, [equipoId]: true }));
+    const result = await getPlayersByEquipo(equipoId);
+    if (result.error) {
+      console.error('Error cargando jugadores del equipo:', result.error);
+      setTeamPlayersMap(prev => ({ ...prev, [equipoId]: [] }));
+    } else {
+      setTeamPlayersMap(prev => ({ ...prev, [equipoId]: result.data || [] }));
+    }
+    setLoadingTeamPlayers(prev => ({ ...prev, [equipoId]: false }));
+  }, []);
+
+  const handleExportPlayers = useCallback((equipoId: string, equipoNombre: string) => {
+    const players = teamPlayersMap[equipoId] || [];
+    if (!players.length) return;
+    const headers = ['Nombre', 'Documento', 'Categoria', 'Escuela', 'Activo'];
+    const rows = players.map(p => [
+      `${p.nombre} ${p.apellido}`,
+      p.documento || '',
+      p.categoria_id || '',
+      p.escuela_id || '',
+      p.activo ? 'Activo' : 'Registrado'
+    ]);
+    const csvContent = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${equipoNombre || 'equipo'}_jugadores.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [teamPlayersMap]);
+
+  const handleDeleteEquipo = useCallback(async (team: EquipoRegistro) => {
+    if (!confirm(`Eliminar el equipo "${team.nombre}"? Esta acción es irreversible.`)) return;
+    const res = await deleteEquipo(team.id, team.escuela_id);
+    if (res.error) {
+      console.error('Error eliminando equipo:', res.error);
+      setTeamLoadError(getErrorMessage(res.error));
+    } else {
+      setTeams(prev => prev.filter(t => t.id !== team.id));
+      setTeamPlayersMap(prev => { const copy = { ...prev }; delete copy[team.id]; return copy; });
+    }
   }, []);
 
   const handleAddAdmin = useCallback(() => {
@@ -757,32 +804,156 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                 {teams.length === 0 && !teamLoadError ? (
                   <div className="alert alert-light">No hay equipos inscritos actualmente.</div>
                 ) : (
-                  <div className="row g-3">
-                    {teams.map((team) => {
-                      const category = categorias.find((cat) => cat.id === team.categoria_id);
-                      const school = escuelas.find((esc) => esc.id === team.escuela_id);
+                  <div>
+                    {categorias.map((cat) => {
+                      const catTeams = teams.filter(t => t.categoria_id === cat.id)
+                      if (!catTeams.length) return null
                       return (
-                        <div key={team.id} className="col-md-6">
-                          <div className="card h-100 shadow-sm">
-                            <div className="card-body">
-                              <h5 className="card-title mb-2">{team.nombre}</h5>
-                              <p className="card-text mb-1">
-                                <strong>Categoría:</strong> {category?.nombre || 'No disponible'}
-                              </p>
-                              <p className="card-text mb-1">
-                                <strong>Escuela:</strong> {school?.nombre || 'No disponible'}
-                              </p>
-                              <p className="card-text mb-1">
-                                <strong>Estado:</strong> {team.estado}
-                              </p>
-                              <p className="card-text text-muted small mb-0">
-                                Inscrito: {team.created_at ? new Date(team.created_at).toLocaleString() : 'Fecha desconocida'}
-                              </p>
-                            </div>
+                        <div key={cat.id} className="mb-3">
+                          <h6 className="mb-2">Categoría: {cat.nombre}</h6>
+                          <div className="row g-3">
+                            {catTeams.map((team) => {
+                              const school = escuelas.find((esc) => esc.id === team.escuela_id);
+                              return (
+                                <div key={team.id} className="col-md-6">
+                                  <div className="card h-100 shadow-sm">
+                                    <div className="card-body">
+                                      <div className="d-flex justify-content-between align-items-start">
+                                        <div>
+                                          <h5 className="card-title mb-2">{team.nombre}</h5>
+                                          <p className="card-text mb-1">
+                                            <strong>Escuela:</strong> {school?.nombre || 'No disponible'}
+                                          </p>
+                                          <p className="card-text mb-1">
+                                            <strong>Estado:</strong> {team.estado}
+                                          </p>
+                                          <p className="card-text text-muted small mb-0">
+                                            Inscrito: {team.created_at ? new Date(team.created_at).toLocaleString() : 'Fecha desconocida'}
+                                          </p>
+                                        </div>
+
+                                        <div className="btn-group-vertical">
+                                          <button
+                                            className="btn btn-sm btn-outline-primary mb-1"
+                                            onClick={() => {
+                                              if (teamPlayersMap[team.id]) {
+                                                setTeamPlayersMap(prev => { const copy = { ...prev }; delete copy[team.id]; return copy; });
+                                              } else {
+                                                handleViewPlayers(team.id);
+                                              }
+                                            }}
+                                          >
+                                            {teamPlayersMap[team.id] ? 'Ocultar jugadores' : 'Ver jugadores'}
+                                          </button>
+
+                                          <button
+                                            className="btn btn-sm btn-outline-success mb-1"
+                                            onClick={() => handleExportPlayers(team.id, team.nombre)}
+                                            disabled={!teamPlayersMap[team.id] || (teamPlayersMap[team.id] || []).length === 0}
+                                          >
+                                            Exportar jugadores
+                                          </button>
+
+                                          <button
+                                            className="btn btn-sm btn-outline-danger"
+                                            onClick={() => handleDeleteEquipo(team)}
+                                          >
+                                            Eliminar equipo
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {loadingTeamPlayers[team.id] && (
+                                        <div className="mt-2 d-flex align-items-center">
+                                          <div className="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                          <small className="text-muted">Cargando jugadores...</small>
+                                        </div>
+                                      )}
+
+                                      {teamPlayersMap[team.id] && (teamPlayersMap[team.id] || []).length > 0 && (
+                                        <div className="mt-3">
+                                          <table className="table table-sm">
+                                            <thead>
+                                              <tr>
+                                                <th>Nombre</th>
+                                                <th>Documento</th>
+                                                <th>Categoría</th>
+                                                <th>Escuela</th>
+                                                <th>Estado</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {teamPlayersMap[team.id].map((p) => (
+                                                <tr key={p.id}>
+                                                  <td>{p.nombre} {p.apellido}</td>
+                                                  <td>{p.documento}</td>
+                                                  <td>{p.categoria_id}</td>
+                                                  <td>{p.escuela_id}</td>
+                                                  <td>{p.activo ? 'Activo' : 'Registrado'}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )})}
                           </div>
                         </div>
                       )
                     })}
+
+                    {/* Teams without category */}
+                    {(() => {
+                      const uncategorized = teams.filter(t => !categorias.find(c => c.id === t.categoria_id))
+                      if (!uncategorized.length) return null
+                      return (
+                        <div className="mb-3">
+                          <h6 className="mb-2">Sin categoría</h6>
+                          <div className="row g-3">
+                            {uncategorized.map(team => {
+                              const school = escuelas.find((esc) => esc.id === team.escuela_id);
+                              return (
+                                <div key={team.id} className="col-md-6">
+                                  <div className="card h-100 shadow-sm">
+                                    <div className="card-body">
+                                      <div className="d-flex justify-content-between align-items-start">
+                                        <div>
+                                          <h5 className="card-title mb-2">{team.nombre}</h5>
+                                          <p className="card-text mb-1"><strong>Escuela:</strong> {school?.nombre || 'No disponible'}</p>
+                                          <p className="card-text mb-1"><strong>Estado:</strong> {team.estado}</p>
+                                        </div>
+                                        <div className="btn-group-vertical">
+                                          <button className="btn btn-sm btn-outline-primary mb-1" onClick={() => { if (teamPlayersMap[team.id]) { setTeamPlayersMap(prev => { const copy = { ...prev }; delete copy[team.id]; return copy; }); } else { handleViewPlayers(team.id); } }}>{teamPlayersMap[team.id] ? 'Ocultar jugadores' : 'Ver jugadores'}</button>
+                                          <button className="btn btn-sm btn-outline-success mb-1" onClick={() => handleExportPlayers(team.id, team.nombre)} disabled={!teamPlayersMap[team.id] || (teamPlayersMap[team.id] || []).length === 0}>Exportar jugadores</button>
+                                          <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteEquipo(team)}>Eliminar equipo</button>
+                                        </div>
+                                      </div>
+
+                                      {teamPlayersMap[team.id] && (teamPlayersMap[team.id] || []).length > 0 && (
+                                        <div className="mt-3">
+                                          <table className="table table-sm">
+                                            <thead>
+                                              <tr><th>Nombre</th><th>Documento</th><th>Categoría</th><th>Escuela</th><th>Estado</th></tr>
+                                            </thead>
+                                            <tbody>
+                                              {teamPlayersMap[team.id].map(p => (
+                                                <tr key={p.id}><td>{p.nombre} {p.apellido}</td><td>{p.documento}</td><td>{p.categoria_id}</td><td>{p.escuela_id}</td><td>{p.activo ? 'Activo' : 'Registrado'}</td></tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )})}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>

@@ -19,6 +19,7 @@ export interface EquipoJugadorAsignacion {
 }
 
 const LOCAL_STORAGE_PREFIX = 'futbol_ocana_team_registrations'
+const LOCAL_ASSIGN_PREFIX = 'futbol_ocana_team_assignments'
 
 const getLocalStorageKey = (escuelaId: string) => `${LOCAL_STORAGE_PREFIX}:${escuelaId}`
 
@@ -39,6 +40,26 @@ const saveLocalTeams = (escuelaId: string, teams: EquipoRegistro[]) => {
     localStorage.setItem(getLocalStorageKey(escuelaId), JSON.stringify(teams))
   } catch (error) {
     console.warn('Error guardando equipos locales:', error)
+  }
+}
+
+const getLocalAssignments = (equipoId: string): EquipoJugadorAsignacion[] => {
+  if (!window?.localStorage) return []
+  try {
+    const raw = localStorage.getItem(`${LOCAL_ASSIGN_PREFIX}:${equipoId}`)
+    return raw ? (JSON.parse(raw) as EquipoJugadorAsignacion[]) : []
+  } catch (error) {
+    console.warn('Error leyendo asignaciones locales:', error)
+    return []
+  }
+}
+
+const saveLocalAssignments = (equipoId: string, assignments: EquipoJugadorAsignacion[]) => {
+  if (!window?.localStorage) return
+  try {
+    localStorage.setItem(`${LOCAL_ASSIGN_PREFIX}:${equipoId}`, JSON.stringify(assignments))
+  } catch (error) {
+    console.warn('Error guardando asignaciones locales:', error)
   }
 }
 
@@ -159,6 +180,10 @@ export const assignPlayersToEquipo = async (
     if (insertResult.error) {
       if (isTableMissing(insertResult.error)) {
         console.warn('assignPlayersToEquipo fallback local, no equipo_jugadores table')
+        // save locally
+        const existing = getLocalAssignments(equipoId)
+        const updated = [...assignments, ...existing]
+        saveLocalAssignments(equipoId, updated)
       } else {
         return { data: null as EquipoJugadorAsignacion[] | null, error: insertResult.error }
       }
@@ -173,7 +198,7 @@ export const assignPlayersToEquipo = async (
       return { data: null as EquipoJugadorAsignacion[] | null, error: updateError }
     }
 
-    return { data: insertResult.data as EquipoJugadorAsignacion[] | null, error: null }
+    return { data: insertResult.data as EquipoJugadorAsignacion[] | null ?? assignments, error: null }
   } catch (error) {
     console.warn('assignPlayersToEquipo fallback update only:', error)
     const { error: updateError } = await supabase
@@ -185,7 +210,103 @@ export const assignPlayersToEquipo = async (
       return { data: null as EquipoJugadorAsignacion[] | null, error: updateError }
     }
 
+    // store locally as last resort
+    const existing = getLocalAssignments(equipoId)
+    const updated = [...assignments, ...existing]
+    saveLocalAssignments(equipoId, updated)
+
     return { data: assignments, error: null }
+  }
+}
+
+export const getPlayersByEquipo = async (equipoId: string) => {
+  try {
+    const { data: asigns, error: asignsError } = await supabase
+      .from('equipo_jugadores' as any)
+      .select('jugador_id, estado, created_at')
+      .eq('equipo_id', equipoId)
+
+    if (asignsError) {
+      if (isTableMissing(asignsError)) {
+        const local = getLocalAssignments(equipoId)
+        const jugadorIds = local.map(a => a.jugador_id)
+        if (!jugadorIds.length) return { data: [] as Jugador[], error: null }
+
+        const { data: jugadores, error: jugadoresError } = await supabase
+          .from('jugadores')
+          .select('*')
+          .in('id', jugadorIds)
+
+        if (jugadoresError) return { data: null as Jugador[] | null, error: jugadoresError }
+        return { data: jugadores as Jugador[] | null, error: null }
+      }
+      return { data: null as Jugador[] | null, error: asignsError }
+    }
+
+    const jugadorIds = (asigns as any[]).map(r => r.jugador_id)
+    if (!jugadorIds.length) return { data: [] as Jugador[], error: null }
+
+    const { data: jugadores, error: jugadoresError } = await supabase
+      .from('jugadores')
+      .select('*')
+      .in('id', jugadorIds)
+
+    if (jugadoresError) return { data: null as Jugador[] | null, error: jugadoresError }
+    return { data: jugadores as Jugador[] | null, error: null }
+  } catch (error) {
+    console.warn('getPlayersByEquipo fallback local:', error)
+    const local = getLocalAssignments(equipoId)
+    const jugadorIds = local.map(a => a.jugador_id)
+    if (!jugadorIds.length) return { data: [] as Jugador[], error: null }
+
+    const { data: jugadores, error: jugadoresError } = await supabase
+      .from('jugadores')
+      .select('*')
+      .in('id', jugadorIds)
+
+    if (jugadoresError) return { data: null as Jugador[] | null, error: jugadoresError }
+    return { data: jugadores as Jugador[] | null, error: null }
+  }
+}
+
+export const deleteEquipo = async (equipoId: string, escuelaId?: string) => {
+  try {
+    const { error } = await supabase
+      .from('equipos' as any)
+      .delete()
+      .eq('id', equipoId)
+
+    if (error) {
+      if (isTableMissing(error)) {
+        // remove from local teams
+        if (escuelaId) {
+          const teams = getLocalTeams(escuelaId).filter(t => t.id !== equipoId)
+          saveLocalTeams(escuelaId, teams)
+        }
+        // remove local assignments
+        try { localStorage.removeItem(`${LOCAL_ASSIGN_PREFIX}:${equipoId}`) } catch {}
+        return { data: true, error: null }
+      }
+      return { data: null as boolean | null, error }
+    }
+
+    // try removing assignments in DB if exists
+    const { error: asgErr } = await supabase
+      .from('equipo_jugadores' as any)
+      .delete()
+      .eq('equipo_id', equipoId)
+
+    try { localStorage.removeItem(`${LOCAL_ASSIGN_PREFIX}:${equipoId}`) } catch {}
+
+    return { data: true, error: asgErr || null }
+  } catch (error) {
+    console.warn('deleteEquipo fallback local:', error)
+    if (escuelaId) {
+      const teams = getLocalTeams(escuelaId).filter(t => t.id !== equipoId)
+      saveLocalTeams(escuelaId, teams)
+    }
+    try { localStorage.removeItem(`${LOCAL_ASSIGN_PREFIX}:${equipoId}`) } catch {}
+    return { data: true, error: null }
   }
 }
 
