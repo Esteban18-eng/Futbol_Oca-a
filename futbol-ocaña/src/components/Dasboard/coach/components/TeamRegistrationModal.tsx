@@ -43,8 +43,9 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
 }) => {
   if (!show) return null
 
+  // Allow selecting players even if their category differs from the team
   const playersByCategory = selectedTeam
-    ? players.filter(player => player.categoria_id === selectedTeam.categoria_id)
+    ? players
     : teamCategoryId
       ? players.filter(player => player.categoria_id === teamCategoryId)
       : []
@@ -155,15 +156,16 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                     <table className="table table-sm table-hover align-middle">
                       <thead>
                         <tr>
-                          <th></th>
-                          <th>Nombre</th>
-                          <th>Documento</th>
-                          <th>Categoría</th>
-                          <th>Estado</th>
-                        </tr>
+                            <th></th>
+                            <th>Nombre</th>
+                            <th>Documento</th>
+                            <th>Fecha Nac.</th>
+                            <th>Categoría</th>
+                            <th>Estado</th>
+                          </tr>
                       </thead>
                       <tbody>
-                        {playersByCategory.length > 0 ? playersByCategory.map(player => (
+                            {playersByCategory.length > 0 ? playersByCategory.map(player => (
                           <tr key={player.id}>
                             <td>
                               <input
@@ -174,7 +176,8 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                             </td>
                             <td>{player.nombre} {player.apellido}</td>
                             <td>{player.documento}</td>
-                            <td>{categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}</td>
+                                <td>{player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                                <td>{categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}</td>
                             <td>{player.activo ? 'Activo' : 'Registrado'}</td>
                           </tr>
                         )) : (

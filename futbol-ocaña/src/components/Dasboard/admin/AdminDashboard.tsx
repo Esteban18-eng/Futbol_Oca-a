@@ -14,6 +14,7 @@ import {
 } from '../../../services/supabaseClient';
 import { getAdminStats, createAdmin, createCoach, createSchool } from '../../../services/adminServices';
 import { getAllEquipos, getPlayersByEquipo, deleteEquipo, EquipoRegistro } from '../../../services/teamRegistrationService';
+import * as XLSX from 'xlsx'
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 import AdminPlayerModal from './AdminPlayerModal';
@@ -44,6 +45,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [teamLoadError, setTeamLoadError] = useState<string | null>(null);
   const [teamPlayersMap, setTeamPlayersMap] = useState<Record<string, Jugador[]>>({});
   const [loadingTeamPlayers, setLoadingTeamPlayers] = useState<Record<string, boolean>>({});
+  const [teamSelectedPlayers, setTeamSelectedPlayers] = useState<Record<string, Record<string, boolean>>>({});
   
   // Estados para estadísticas
   const [stats, setStats] = useState({
@@ -222,23 +224,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const handleExportPlayers = useCallback((equipoId: string, equipoNombre: string) => {
     const players = teamPlayersMap[equipoId] || [];
     if (!players.length) return;
-    const headers = ['Nombre', 'Documento', 'Categoria', 'Escuela', 'Activo'];
-    const rows = players.map(p => [
-      `${p.nombre} ${p.apellido}`,
-      p.documento || '',
-      p.categoria_id || '',
-      p.escuela_id || '',
-      p.activo ? 'Activo' : 'Registrado'
-    ]);
-    const csvContent = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${equipoNombre || 'equipo'}_jugadores.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [teamPlayersMap]);
+
+    const selectedMap = teamSelectedPlayers[equipoId] || {};
+    const filtered = players.filter(p => {
+      // if any selected, export only selected; otherwise export all
+      const anySelected = Object.values(selectedMap).some(Boolean);
+      if (!anySelected) return true;
+      return !!selectedMap[p.id];
+    });
+
+    const rows = filtered.map(p => ({
+      Nombre: `${p.nombre} ${p.apellido}`,
+      Documento: p.documento || '',
+      FechaNacimiento: p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : '',
+      Categoria: categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || '',
+      Escuela: escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || '',
+      Estado: p.activo ? 'Activo' : 'Registrado'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Jugadores');
+    XLSX.writeFile(wb, `${(equipoNombre || 'equipo').replace(/[^a-z0-9_\-]/gi,'_')}_jugadores.xlsx`);
+  }, [teamPlayersMap, teamSelectedPlayers, categorias, escuelas]);
 
   const handleDeleteEquipo = useCallback(async (team: EquipoRegistro) => {
     if (!confirm(`Eliminar el equipo "${team.nombre}"? Esta acción es irreversible.`)) return;
@@ -250,6 +258,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       setTeams(prev => prev.filter(t => t.id !== team.id));
       setTeamPlayersMap(prev => { const copy = { ...prev }; delete copy[team.id]; return copy; });
     }
+  }, []);
+
+  const togglePlayerSelect = useCallback((equipoId: string, playerId: string) => {
+    setTeamSelectedPlayers(prev => {
+      const copy = { ...(prev || {}) };
+      const map = { ...(copy[equipoId] || {}) };
+      map[playerId] = !map[playerId];
+      copy[equipoId] = map;
+      return copy;
+    });
   }, []);
 
   const handleAddAdmin = useCallback(() => {
@@ -875,8 +893,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                           <table className="table table-sm">
                                             <thead>
                                               <tr>
+                                                <th></th>
                                                 <th>Nombre</th>
                                                 <th>Documento</th>
+                                                <th>Fecha Nac.</th>
                                                 <th>Categoría</th>
                                                 <th>Escuela</th>
                                                 <th>Estado</th>
@@ -885,10 +905,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                             <tbody>
                                               {teamPlayersMap[team.id].map((p) => (
                                                 <tr key={p.id}>
+                                                  <td>
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={!!teamSelectedPlayers[team.id]?.[p.id]}
+                                                      onChange={() => togglePlayerSelect(team.id, p.id)}
+                                                    />
+                                                  </td>
                                                   <td>{p.nombre} {p.apellido}</td>
                                                   <td>{p.documento}</td>
-                                                  <td>{p.categoria_id}</td>
-                                                  <td>{p.escuela_id}</td>
+                                                  <td>{p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                                                  <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
+                                                  <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
                                                   <td>{p.activo ? 'Activo' : 'Registrado'}</td>
                                                 </tr>
                                               ))}
@@ -936,11 +964,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                         <div className="mt-3">
                                           <table className="table table-sm">
                                             <thead>
-                                              <tr><th>Nombre</th><th>Documento</th><th>Categoría</th><th>Escuela</th><th>Estado</th></tr>
+                                              <tr>
+                                                <th></th>
+                                                <th>Nombre</th>
+                                                <th>Documento</th>
+                                                <th>Fecha Nac.</th>
+                                                <th>Categoría</th>
+                                                <th>Escuela</th>
+                                                <th>Estado</th>
+                                              </tr>
                                             </thead>
                                             <tbody>
                                               {teamPlayersMap[team.id].map(p => (
-                                                <tr key={p.id}><td>{p.nombre} {p.apellido}</td><td>{p.documento}</td><td>{p.categoria_id}</td><td>{p.escuela_id}</td><td>{p.activo ? 'Activo' : 'Registrado'}</td></tr>
+                                                <tr key={p.id}>
+                                                  <td>
+                                                    <input type="checkbox" checked={!!teamSelectedPlayers[team.id]?.[p.id]} onChange={() => togglePlayerSelect(team.id, p.id)} />
+                                                  </td>
+                                                  <td>{p.nombre} {p.apellido}</td>
+                                                  <td>{p.documento}</td>
+                                                  <td>{p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                                                  <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
+                                                  <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
+                                                  <td>{p.activo ? 'Activo' : 'Registrado'}</td>
+                                                </tr>
                                               ))}
                                             </tbody>
                                           </table>
