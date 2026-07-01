@@ -1,6 +1,6 @@
 // documentLogoService.ts
 import { jsPDF } from 'jspdf';
-import { getEscuelaLogoUrl, supabase } from './supabaseClient';
+import { getEscuelaLogoUrl, supabase, Jugador } from './supabaseClient';
 
 export interface LogoConfig {
   url: string | null;
@@ -33,6 +33,67 @@ export class DocumentLogoService {
       console.error('Error obteniendo logo de escuela:', error);
       return null;
     }
+  }
+
+  /**
+   * Generar PDF de planilla de jugadores inscritos para un equipo
+   * Incluye el nombre exacto del equipo y marca de agua con el logo de la escuela
+   */
+  static async generateTeamRosterPDF(
+    teamName: string,
+    roster: Jugador[],
+    escuelaId?: string
+  ): Promise<jsPDF> {
+    const doc = new jsPDF();
+
+    // Obtener logo de la escuela para watermark
+    let logoUrl: string | null = null;
+    try {
+      logoUrl = await this.getEscuelaLogo(escuelaId);
+    } catch (err) {
+      console.warn('generateTeamRosterPDF: error obteniendo logo', err);
+      logoUrl = null;
+    }
+
+    if (logoUrl) {
+      this.addLogoToPDF(doc, { url: logoUrl, position: 'watermark', opacity: 0.08 });
+    }
+
+    // Header con nombre exacto del equipo
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(teamName, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
+
+    // Tabla simple de jugadores
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+
+    let y = 40;
+    const left = 20;
+
+    // Encabezados
+    doc.setFont('helvetica', 'bold');
+    doc.text('#', left, y);
+    doc.text('Nombre', left + 12, y);
+    doc.text('Documento', left + 90, y);
+    doc.text('Nacimiento', left + 130, y);
+    y += 7;
+    doc.setFont('helvetica', 'normal');
+
+    roster.forEach((p, idx) => {
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+      const fullName = `${(p.nombre || '').trim()} ${(p.apellido || '').trim()}`.trim();
+      doc.text(String(idx + 1), left, y);
+      doc.text(fullName || '—', left + 12, y);
+      doc.text(String(p.documento || ''), left + 90, y);
+      doc.text(p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString('es-CO') : '', left + 130, y);
+      y += 7;
+    });
+
+    return doc;
   }
 
   /**

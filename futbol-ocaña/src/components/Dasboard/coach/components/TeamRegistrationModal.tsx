@@ -23,6 +23,8 @@ interface TeamRegistrationModalProps {
   onChangeTeamCategory: (value: string) => void
   selectedCategoryFilter: string
   onChangeCategoryFilter: (value: string) => void
+  onToggleSelectAll?: (selectAll: boolean, visibleIds: string[]) => void
+  onExportTeamPdf?: (equipoId?: string, equipoNombre?: string) => Promise<void>
 }
 
 const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
@@ -46,6 +48,9 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
   onChangeTeamCategory,
   selectedCategoryFilter,
   onChangeCategoryFilter
+  ,
+  onToggleSelectAll,
+  onExportTeamPdf
 }) => {
   if (!show) return null
 
@@ -188,7 +193,21 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                     <table className="table table-sm table-hover align-middle">
                       <thead>
                         <tr>
-                          <th></th>
+                          <th>
+                            <div className="d-flex align-items-center">
+                              <input
+                                type="checkbox"
+                                aria-label="Seleccionar todos"
+                                checked={playersByCategory.length > 0 && playersByCategory.every(p => selectedPlayerIds.includes(p.id))}
+                                onChange={(e) => {
+                                  const selectAll = e.target.checked;
+                                  const visibleIds = playersByCategory.map(p => p.id);
+                                  if (onToggleSelectAll) onToggleSelectAll(selectAll, visibleIds);
+                                }}
+                              />
+                              <span className="ms-2">Seleccionar todos</span>
+                            </div>
+                          </th>
                           <th>Nombre</th>
                           <th>Documento</th>
                           <th>Fecha Nac.</th>
@@ -228,6 +247,13 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                     onClick={onAssignPlayers}
                   >
                     Registrar jugadores seleccionados con participación activa
+                  </button>
+                  <button
+                    className="btn btn-outline-primary ms-2"
+                    onClick={() => onExportTeamPdf && onExportTeamPdf(selectedTeam?.id, selectedTeam?.nombre)}
+                    disabled={!selectedTeam}
+                  >
+                    Exportar planilla PDF
                   </button>
                 </div>
               </div>

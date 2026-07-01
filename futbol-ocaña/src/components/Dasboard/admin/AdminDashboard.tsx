@@ -880,7 +880,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                   <div className="alert alert-light">No hay equipos inscritos actualmente.</div>
                 ) : (
                   <div>
+                    <div className="d-flex align-items-center mb-3">
+                      <label className="me-2 mb-0">Filtrar categoría:</label>
+                      <select className="form-select form-select-sm w-auto me-2" value={selectedCategory} onChange={(e) => handleCategorySelect(e.target.value)}>
+                        <option value="">Todas las categorías</option>
+                        {categorias.map(c => (
+                          <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                      </select>
+                      {selectedCategory && (
+                        <button className="btn btn-sm btn-outline-secondary" onClick={handleClearCategory}>Limpiar</button>
+                      )}
+                    </div>
                     {categorias.map((cat) => {
+                      if (selectedCategory && cat.id !== selectedCategory) return null
                       const catTeams = teams.filter(t => t.categoria_id === cat.id)
                       if (!catTeams.length) return null
                       return (

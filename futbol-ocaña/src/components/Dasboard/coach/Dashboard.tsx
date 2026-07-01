@@ -31,9 +31,11 @@ import {
   createEquipo,
   getEquiposByEscuela,
   assignPlayersToEquipo,
+  getPlayersByEquipo,
   updateEquipo,
   EquipoRegistro
 } from '../../../services/teamRegistrationService';
+import { DocumentLogoService } from '../../../services/documentLogoService';
 import CoachHeader from './components/CoachHeader';
 import CoachSidebar from './components/CoachSidebar';
 import PlayerModal from './components/PlayerModal';
@@ -317,11 +319,59 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setSelectedTeam(team);
     setTeamName(team.nombre);
     setTeamCategoryId(team.categoria_id);
-    setSelectedPlayerIds([]);
     setTeamFilterCategory(team.categoria_id);
     setTeamRegistrationError(null);
     setTeamRegistrationMessage(`Equipo seleccionado: ${team.nombre}`);
+
+    // Load currently assigned players for this team so coaches see who is already inscribed
+    (async () => {
+      try {
+        const res = await getPlayersByEquipo(team.id);
+        if (res.error) {
+          console.error('Error cargando jugadores del equipo seleccionado:', res.error);
+          return;
+        }
+        const assigned = res.data || [];
+        setSelectedPlayerIds(assigned.map(p => p.id));
+      } catch (err) {
+        console.error('Error cargando jugadores del equipo (fallback):', err);
+      }
+    })();
   }, []);
+
+  const handleExportTeamPdf = useCallback(async (equipoId?: string, equipoNombre?: string) => {
+    if (!equipoId) {
+      setTeamRegistrationError('Seleccione un equipo para exportar');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setProcessingMessage('Generando PDF de planilla...');
+
+      const res = await getPlayersByEquipo(equipoId);
+      if (res.error) throw res.error;
+      const roster = res.data || [];
+
+      // Use DocumentLogoService to build PDF with watermark logo
+      const doc = await DocumentLogoService.generateTeamRosterPDF?.(equipoNombre || 'equipo', roster, selectedTeam?.escuela_id) ?? (() => {
+        const { jsPDF } = require('jspdf');
+        const d = new jsPDF();
+        d.text(equipoNombre || 'Equipo', 20, 20);
+        return d;
+      })();
+
+      // sanitize filename
+      const filename = `${(equipoNombre || 'equipo').replace(/[^a-z0-9_\-]/gi,'_')}_planilla.pdf`;
+      doc.save(filename);
+    } catch (err: any) {
+      console.error('Error exportando planilla PDF:', err);
+      setTeamRegistrationError(err?.message || 'Error generando PDF');
+    } finally {
+      setIsProcessing(false);
+      setProcessingMessage('');
+    }
+  }, [selectedTeam]);
 
   const handleUpdateTeam = useCallback(async () => {
     if (!selectedTeam) {
@@ -365,6 +415,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       }
       return [...prev, playerId];
     });
+  }, []);
+
+  const handleToggleSelectAll = useCallback((selectAll: boolean, visibleIds: string[]) => {
+    if (selectAll) {
+      setSelectedPlayerIds(visibleIds);
+    } else {
+      setSelectedPlayerIds([]);
+    }
   }, []);
 
   const handleAssignPlayers = useCallback(async () => {
@@ -1958,6 +2016,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         onChangeTeamCategory={setTeamCategoryId}
         selectedCategoryFilter={teamFilterCategory}
         onChangeCategoryFilter={setTeamFilterCategory}
+        onToggleSelectAll={handleToggleSelectAll}
+        onExportTeamPdf={handleExportTeamPdf}
       />
 
       {/* Excel Import Modal */}
