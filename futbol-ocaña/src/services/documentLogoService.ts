@@ -60,16 +60,38 @@ export class DocumentLogoService {
     }
 
     // Header con nombre exacto del equipo
-    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(teamName, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
+    let headerFontSize = 16;
+    doc.setFontSize(headerFontSize);
+
+    // Ajustar si el nombre es muy largo: dividir en líneas y reducir tamaño si son muchas
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const maxWidth = pageWidth - margin * 2;
+    let lines: string[] = doc.splitTextToSize(teamName, maxWidth);
+    // Si hay muchas líneas, reducir tamaño progresivamente
+    if (lines.length > 3) {
+      headerFontSize = 12;
+      doc.setFontSize(headerFontSize);
+      lines = doc.splitTextToSize(teamName, maxWidth);
+    }
+
+    // Dibujar líneas centradas y calcular Y inicial para la tabla
+    let y = 25;
+    const centerX = pageWidth / 2;
+    const lineHeight = headerFontSize + 2;
+    lines.forEach((ln: string) => {
+      doc.text(ln, centerX, y, { align: 'center' });
+      y += lineHeight;
+    });
+
+    // Espacio extra entre header y tabla
+    y += 10;
 
     // Tabla simple de jugadores
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-
-    let y = 40;
-    const left = 20;
+    const left = margin;
 
     // Encabezados
     doc.setFont('helvetica', 'bold');
@@ -81,16 +103,34 @@ export class DocumentLogoService {
     doc.setFont('helvetica', 'normal');
 
     roster.forEach((p, idx) => {
-      if (y > 270) {
+      // calcular posición límite y salto de línea según contenido de la columna Nombre
+      const pageBottom = 280;
+      const fullName = `${(p.nombre || '').trim()} ${(p.apellido || '') .trim()}`.trim();
+
+      const idxX = left;
+      const nameX = left + 12;
+      const docX = left + 90;
+      const birthX = left + 130;
+
+      const nameMaxWidth = docX - nameX - 4; // dejar pequeño margen
+      const lineHeight = 7; // altura por línea en pts (aprox.)
+
+      const nameLines: string[] = doc.splitTextToSize(fullName || '—', nameMaxWidth);
+      const rowHeight = Math.max(lineHeight, nameLines.length * lineHeight);
+
+      if (y + rowHeight > pageBottom) {
         doc.addPage();
         y = 20;
       }
-      const fullName = `${(p.nombre || '').trim()} ${(p.apellido || '').trim()}`.trim();
-      doc.text(String(idx + 1), left, y);
-      doc.text(fullName || '—', left + 12, y);
-      doc.text(String(p.documento || ''), left + 90, y);
-      doc.text(p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString('es-CO') : '', left + 130, y);
-      y += 7;
+
+      const dateStr = p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString('es-CO') : '';
+
+      doc.text(String(idx + 1), idxX, y);
+      doc.text(nameLines, nameX, y);
+      doc.text(String(p.documento || ''), docX, y);
+      doc.text(dateStr, birthX, y);
+
+      y += rowHeight;
     });
 
     return doc;
