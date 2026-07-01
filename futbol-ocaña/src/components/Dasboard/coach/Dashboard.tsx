@@ -31,6 +31,7 @@ import {
   createEquipo,
   getEquiposByEscuela,
   assignPlayersToEquipo,
+  updateEquipo,
   EquipoRegistro
 } from '../../../services/teamRegistrationService';
 import CoachHeader from './components/CoachHeader';
@@ -128,6 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   const [teamName, setTeamName] = useState('');
   const [teamCategoryId, setTeamCategoryId] = useState('');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [teamFilterCategory, setTeamFilterCategory] = useState('');
   const [showTeamRegistrationModal, setShowTeamRegistrationModal] = useState(false);
   const [teamRegistrationMessage, setTeamRegistrationMessage] = useState<string | null>(null);
   const [teamRegistrationError, setTeamRegistrationError] = useState<string | null>(null);
@@ -270,6 +272,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setTeamName('');
     setTeamCategoryId('');
     setSelectedPlayerIds([]);
+    setTeamFilterCategory('');
     setShowTeamRegistrationModal(true);
     loadTeams();
   }, [loadTeams]);
@@ -312,11 +315,48 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
 
   const handleSelectTeam = useCallback((team: EquipoRegistro) => {
     setSelectedTeam(team);
+    setTeamName(team.nombre);
     setTeamCategoryId(team.categoria_id);
     setSelectedPlayerIds([]);
+    setTeamFilterCategory(team.categoria_id);
     setTeamRegistrationError(null);
     setTeamRegistrationMessage(`Equipo seleccionado: ${team.nombre}`);
   }, []);
+
+  const handleUpdateTeam = useCallback(async () => {
+    if (!selectedTeam) {
+      setTeamRegistrationError('Seleccione un equipo para editar');
+      return;
+    }
+
+    if (!teamName.trim() || !teamCategoryId) {
+      setTeamRegistrationError('Ingrese nombre y categoría del equipo');
+      return;
+    }
+
+    try {
+      setTeamRegistrationError(null);
+      setTeamRegistrationMessage('Actualizando equipo...');
+
+      const result = await updateEquipo(selectedTeam.id, {
+        nombre: teamName.trim(),
+        categoria_id: teamCategoryId,
+        estado: selectedTeam.estado
+      }, currentUser.escuela_id || undefined);
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      await loadTeams();
+      setSelectedTeam(prev => prev ? { ...prev, nombre: teamName.trim(), categoria_id: teamCategoryId } : prev);
+      setTeamRegistrationMessage('Equipo actualizado correctamente.');
+    } catch (err: any) {
+      console.error('Error actualizando equipo:', err);
+      setTeamRegistrationError(err.message || 'Error actualizando equipo');
+      setTeamRegistrationMessage(null);
+    }
+  }, [selectedTeam, teamName, teamCategoryId, currentUser.escuela_id, loadTeams]);
 
   const handleTogglePlayerSelection = useCallback((playerId: string) => {
     setSelectedPlayerIds(prev => {
@@ -363,6 +403,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setTeamRegistrationMessage(null);
     setSelectedTeam(null);
     setSelectedPlayerIds([]);
+    setTeamFilterCategory('');
   }, []);
 
   // EFECTO PRINCIPAL - CON CLEANUP COMPLETO
@@ -1909,11 +1950,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         message={teamRegistrationMessage}
         error={teamRegistrationError}
         onCreateTeam={handleCreateTeam}
+        onUpdateTeam={handleUpdateTeam}
         onSelectTeam={handleSelectTeam}
         onPlayerToggle={handleTogglePlayerSelection}
         onAssignPlayers={handleAssignPlayers}
         onChangeTeamName={setTeamName}
         onChangeTeamCategory={setTeamCategoryId}
+        selectedCategoryFilter={teamFilterCategory}
+        onChangeCategoryFilter={setTeamFilterCategory}
       />
 
       {/* Excel Import Modal */}

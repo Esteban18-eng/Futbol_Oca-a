@@ -12,6 +12,7 @@ interface AdminPlayerModalProps {
   onPrint: () => void;
   onDownloadID: () => void;
   onDownloadRegister: () => void;
+  onDownloadProfilePhoto: () => void;
   onDocumentOpen: (url: string, filename: string) => void;
   onDeletePlayer: (player: Jugador) => void;
   onUpdatePlayerSchool: (playerId: string, escuelaId: string | null) => Promise<void>;
@@ -25,6 +26,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
   onPrint,
   /*onDownloadID,
   onDownloadRegister,*/
+  onDownloadProfilePhoto,
   onDocumentOpen,
   onDeletePlayer,
   onUpdatePlayerSchool,
@@ -347,6 +349,11 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
             {(player.documento_pdf_url || player.registro_civil_url) && (
               <button className="player-action-btn player-download-docs-btn" onClick={handleDownloadDocuments}>
                 📄 Gestionar Documentos
+              </button>
+            )}
+            {player.foto_perfil_url && (
+              <button className="player-action-btn player-download-photo-btn" onClick={onDownloadProfilePhoto}>
+                📷 Descargar Foto de Perfil
               </button>
             )}
             <button className="player-action-btn player-close-action-btn" onClick={onClose}>

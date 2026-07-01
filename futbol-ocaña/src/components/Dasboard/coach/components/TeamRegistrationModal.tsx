@@ -15,11 +15,14 @@ interface TeamRegistrationModalProps {
   message?: string | null
   error?: string | null
   onCreateTeam: (nombre: string, categoriaId: string) => Promise<void>
+  onUpdateTeam: () => Promise<void>
   onSelectTeam: (team: EquipoRegistro) => void
   onPlayerToggle: (playerId: string) => void
   onAssignPlayers: () => Promise<void>
   onChangeTeamName: (value: string) => void
   onChangeTeamCategory: (value: string) => void
+  selectedCategoryFilter: string
+  onChangeCategoryFilter: (value: string) => void
 }
 
 const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
@@ -35,20 +38,30 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
   message,
   error,
   onCreateTeam,
+  onUpdateTeam,
   onSelectTeam,
   onPlayerToggle,
   onAssignPlayers,
   onChangeTeamName,
-  onChangeTeamCategory
+  onChangeTeamCategory,
+  selectedCategoryFilter,
+  onChangeCategoryFilter
 }) => {
   if (!show) return null
 
-  // Allow selecting players even if their category differs from the team
+  const filteredPlayers = players.filter((player) => {
+    const activeCategory = selectedCategoryFilter || teamCategoryId
+    if (activeCategory) {
+      return player.categoria_id === activeCategory
+    }
+    return true
+  })
+
   const playersByCategory = selectedTeam
-    ? players
+    ? filteredPlayers
     : teamCategoryId
-      ? players.filter(player => player.categoria_id === teamCategoryId)
-      : []
+      ? filteredPlayers
+      : filteredPlayers
 
   return (
     <div className="modal d-block" tabIndex={-1} role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
@@ -136,9 +149,14 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                           ))}
                         </select>
                       </div>
-                      <button type="submit" className="btn btn-primary w-100">
-                        Inscribir equipo
-                      </button>
+                      <div className="d-flex gap-2">
+                        <button type="submit" className="btn btn-primary flex-grow-1">
+                          Inscribir equipo
+                        </button>
+                        <button type="button" className="btn btn-outline-secondary" onClick={() => onUpdateTeam()} disabled={!selectedTeam}>
+                          Guardar cambios
+                        </button>
+                      </div>
                     </form>
                   </div>
                 </div>
@@ -148,24 +166,38 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
             {selectedTeam && (
               <div className="card mb-3">
                 <div className="card-body">
-                  <h6 className="card-title">Registrar jugadores para el equipo</h6>
-                  <p className="text-muted mb-3">
-                    Seleccione únicamente jugadores registrados en la base de datos del club y en la categoría del equipo.
-                  </p>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <h6 className="card-title mb-1">Registrar jugadores para el equipo</h6>
+                      <p className="text-muted mb-0">
+                        Seleccione únicamente jugadores registrados en la base de datos del club y en la categoría del equipo.
+                      </p>
+                    </div>
+                    <select
+                      className="form-select form-select-sm w-auto"
+                      value={selectedCategoryFilter}
+                      onChange={(e) => onChangeCategoryFilter(e.target.value)}
+                    >
+                      <option value="">Todas las categorías</option>
+                      {categorias.map((categoria) => (
+                        <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="table-responsive">
                     <table className="table table-sm table-hover align-middle">
                       <thead>
                         <tr>
-                            <th></th>
-                            <th>Nombre</th>
-                            <th>Documento</th>
-                            <th>Fecha Nac.</th>
-                            <th>Categoría</th>
-                            <th>Estado</th>
-                          </tr>
+                          <th></th>
+                          <th>Nombre</th>
+                          <th>Documento</th>
+                          <th>Fecha Nac.</th>
+                          <th>Categoría</th>
+                          <th>Estado</th>
+                        </tr>
                       </thead>
                       <tbody>
-                            {playersByCategory.length > 0 ? playersByCategory.map(player => (
+                        {playersByCategory.length > 0 ? playersByCategory.map(player => (
                           <tr key={player.id}>
                             <td>
                               <input
@@ -176,13 +208,13 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                             </td>
                             <td>{player.nombre} {player.apellido}</td>
                             <td>{player.documento}</td>
-                                <td>{player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString() : ''}</td>
-                                <td>{categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}</td>
+                            <td>{player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                            <td>{categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}</td>
                             <td>{player.activo ? 'Activo' : 'Registrado'}</td>
                           </tr>
                         )) : (
                           <tr>
-                            <td colSpan={5} className="text-center text-muted py-4">
+                            <td colSpan={6} className="text-center text-muted py-4">
                               {teamCategoryId || selectedTeam ? 'No existen jugadores registrados en la categoría seleccionada.' : 'Seleccione una categoría o un equipo para ver jugadores.'}
                             </td>
                           </tr>

@@ -22,12 +22,42 @@ const LOCAL_STORAGE_PREFIX = 'futbol_ocana_team_registrations'
 const LOCAL_ASSIGN_PREFIX = 'futbol_ocana_team_assignments'
 
 const getLocalStorageKey = (escuelaId: string) => `${LOCAL_STORAGE_PREFIX}:${escuelaId}`
+const getSharedLocalStorageKey = (escuelaId: string) => `${LOCAL_STORAGE_PREFIX}:shared:${escuelaId}`
+
+const mergeTeams = (teams: EquipoRegistro[]) => {
+  const uniqueById = new Map<string, EquipoRegistro>()
+  teams.forEach((team) => {
+    if (team?.id) {
+      uniqueById.set(team.id, team)
+    }
+  })
+
+  return Array.from(uniqueById.values()).sort((a, b) => {
+    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+    return dateB - dateA
+  })
+}
 
 const getLocalTeams = (escuelaId: string): EquipoRegistro[] => {
   if (!window?.localStorage) return []
+
+  const keys = [getLocalStorageKey(escuelaId), getSharedLocalStorageKey(escuelaId)]
+  const collected: EquipoRegistro[] = []
+
   try {
-    const raw = localStorage.getItem(getLocalStorageKey(escuelaId))
-    return raw ? (JSON.parse(raw) as EquipoRegistro[]) : []
+    keys.forEach((key) => {
+      const raw = localStorage.getItem(key)
+      if (!raw) return
+      try {
+        const parsed = JSON.parse(raw) as EquipoRegistro[]
+        collected.push(...parsed)
+      } catch (error) {
+        console.warn(`Error leyendo equipos locales en ${key}:`, error)
+      }
+    })
+
+    return mergeTeams(collected)
   } catch (error) {
     console.warn('Error leyendo equipos locales:', error)
     return []
@@ -36,8 +66,11 @@ const getLocalTeams = (escuelaId: string): EquipoRegistro[] => {
 
 const saveLocalTeams = (escuelaId: string, teams: EquipoRegistro[]) => {
   if (!window?.localStorage) return
+  const normalizedTeams = mergeTeams(teams)
+
   try {
-    localStorage.setItem(getLocalStorageKey(escuelaId), JSON.stringify(teams))
+    localStorage.setItem(getLocalStorageKey(escuelaId), JSON.stringify(normalizedTeams))
+    localStorage.setItem(getSharedLocalStorageKey(escuelaId), JSON.stringify(normalizedTeams))
   } catch (error) {
     console.warn('Error guardando equipos locales:', error)
   }
@@ -269,6 +302,45 @@ export const getPlayersByEquipo = async (equipoId: string) => {
   }
 }
 
+export const updateEquipo = async (
+  equipoId: string,
+  updates: Partial<Pick<EquipoRegistro, 'nombre' | 'categoria_id' | 'escuela_id' | 'estado'>>,
+  escuelaId?: string
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('equipos' as any)
+      .update(updates)
+      .eq('id', equipoId)
+      .select('*')
+      .single()
+
+    if (error) {
+      if (isTableMissing(error)) {
+        if (escuelaId) {
+          const teams = getLocalTeams(escuelaId).map((team) =>
+            team.id === equipoId ? { ...team, ...updates } : team
+          )
+          saveLocalTeams(escuelaId, teams)
+        }
+        return { data: null as EquipoRegistro | null, error: null }
+      }
+      return { data: null as EquipoRegistro | null, error }
+    }
+
+    return { data: data as unknown as EquipoRegistro | null, error: null }
+  } catch (error) {
+    console.warn('updateEquipo fallback local:', error)
+    if (escuelaId) {
+      const teams = getLocalTeams(escuelaId).map((team) =>
+        team.id === equipoId ? { ...team, ...updates } : team
+      )
+      saveLocalTeams(escuelaId, teams)
+    }
+    return { data: null as EquipoRegistro | null, error: null }
+  }
+}
+
 export const deleteEquipo = async (equipoId: string, escuelaId?: string) => {
   try {
     const { error } = await supabase
@@ -338,7 +410,7 @@ export const getAllEquipos = async () => {
           console.warn('getAllEquipos fallback local storage error:', localError)
         }
 
-        return { data: entries, error: null }
+        return { data: mergeTeams(entries), error: null }
       }
       return { data: null as EquipoRegistro[] | null, error }
     }
@@ -365,7 +437,7 @@ export const getAllEquipos = async () => {
       console.warn('getAllEquipos fallback local storage error:', localError)
     }
 
-    return { data: entries, error: null }
+    return { data: mergeTeams(entries), error: null }
   }
 }
 

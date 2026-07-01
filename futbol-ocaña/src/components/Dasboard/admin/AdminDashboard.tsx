@@ -14,6 +14,7 @@ import {
 } from '../../../services/supabaseClient';
 import { getAdminStats, createAdmin, createCoach, createSchool } from '../../../services/adminServices';
 import { getAllEquipos, getPlayersByEquipo, deleteEquipo, EquipoRegistro } from '../../../services/teamRegistrationService';
+import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx'
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
@@ -46,6 +47,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
   const [teamPlayersMap, setTeamPlayersMap] = useState<Record<string, Jugador[]>>({});
   const [loadingTeamPlayers, setLoadingTeamPlayers] = useState<Record<string, boolean>>({});
   const [teamSelectedPlayers, setTeamSelectedPlayers] = useState<Record<string, Record<string, boolean>>>({});
+
+  const uniqueTeams = useCallback((items: EquipoRegistro[]) => {
+    return Array.from(new Map(items.map((team) => [team.id, team])).values());
+  }, []);
   
   // Estados para estadísticas
   const [stats, setStats] = useState({
@@ -142,7 +147,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
         if (equiposResult.error) {
           setTeamLoadError(getErrorMessage(equiposResult.error));
         } else {
-          setTeams(equiposResult.data || []);
+          setTeams(uniqueTeams(equiposResult.data || []));
         }
 
       } catch (err: any) {
@@ -204,10 +209,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       setTeams([]);
     } else {
       setTeamLoadError(null);
-      setTeams(equiposResult.data || []);
+      setTeams(uniqueTeams(equiposResult.data || []));
     }
     setShowTeamsModal(true);
-  }, []);
+  }, [uniqueTeams]);
 
   const handleViewPlayers = useCallback(async (equipoId: string) => {
     setLoadingTeamPlayers(prev => ({ ...prev, [equipoId]: true }));
@@ -227,7 +232,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
 
     const selectedMap = teamSelectedPlayers[equipoId] || {};
     const filtered = players.filter(p => {
-      // if any selected, export only selected; otherwise export all
       const anySelected = Object.values(selectedMap).some(Boolean);
       if (!anySelected) return true;
       return !!selectedMap[p.id];
@@ -246,6 +250,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Jugadores');
     XLSX.writeFile(wb, `${(equipoNombre || 'equipo').replace(/[^a-z0-9_\-]/gi,'_')}_jugadores.xlsx`);
+  }, [teamPlayersMap, teamSelectedPlayers, categorias, escuelas]);
+
+  const handleExportPlayersPdf = useCallback((equipoId: string, equipoNombre: string) => {
+    const players = teamPlayersMap[equipoId] || [];
+    if (!players.length) return;
+
+    const selectedMap = teamSelectedPlayers[equipoId] || {};
+    const filtered = players.filter(p => {
+      const anySelected = Object.values(selectedMap).some(Boolean);
+      if (!anySelected) return true;
+      return !!selectedMap[p.id];
+    });
+
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`Equipo: ${equipoNombre || 'Equipo'}`, 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Jugadores exportados: ${filtered.length}`, 14, 24);
+
+    let y = 36;
+    filtered.forEach((player, index) => {
+      const line = `${index + 1}. ${player.nombre} ${player.apellido} | ${player.documento || '-'} | ${player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString() : '-'} | ${categorias.find(c => c.id === player.categoria_id)?.nombre || player.categoria?.nombre || '-'} | ${escuelas.find(s => s.id === player.escuela_id)?.nombre || player.escuela?.nombre || '-'}`;
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(line, 14, y);
+      y += 8;
+    });
+
+    doc.save(`${(equipoNombre || 'equipo').replace(/[^a-z0-9_\-]/gi,'_')}_jugadores.pdf`);
   }, [teamPlayersMap, teamSelectedPlayers, categorias, escuelas]);
 
   const handleDeleteEquipo = useCallback(async (team: EquipoRegistro) => {
@@ -497,7 +532,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
 
   const handleDownloadDocument = useCallback((documentUrl: string, documentName: string) => {
     try {
-      // Crear un enlace temporal para descargar el archivo
       const link = document.createElement('a');
       link.href = documentUrl;
       link.download = documentName;
@@ -505,7 +539,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       link.click();
       document.body.removeChild(link);
       
-      // Mostrar confirmación
       setTimeout(() => {
         alert(`✅ Documento "${documentName}" descargado correctamente`);
       }, 500);
@@ -513,6 +546,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       setError(`Error al descargar documento: ${err.message}`);
     }
   }, []);
+
+  const handleDownloadProfilePhoto = useCallback(() => {
+    if (!selectedPlayer?.foto_perfil_url) {
+      alert('No hay foto de perfil disponible para descargar.');
+      return;
+    }
+
+    try {
+      const url = selectedPlayer.foto_perfil_url;
+      const filename = `FotoPerfil_${selectedPlayer.nombre}_${selectedPlayer.apellido}.jpg`.replace(/\s+/g, '_');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => {
+        alert(`✅ Foto de perfil descargada como ${filename}`);
+      }, 500);
+    } catch (err: any) {
+      setError(`Error al descargar la foto de perfil: ${err.message}`);
+    }
+  }, [selectedPlayer]);
 
   // Handlers para crear nuevos registros
   const handleCreateAdmin = useCallback(async (adminData: any) => {
@@ -798,6 +854,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
           onPrint={handlePrint}
           onDownloadID={handleDownloadID}
           onDownloadRegister={handleDownloadRegister}
+          onDownloadProfilePhoto={handleDownloadProfilePhoto}
           onDocumentOpen={handleDocumentOpen}
           onDeletePlayer={handleDeletePlayer}
           onUpdatePlayerSchool={handleUpdatePlayerSchool}
@@ -869,7 +926,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                             onClick={() => handleExportPlayers(team.id, team.nombre)}
                                             disabled={!teamPlayersMap[team.id] || (teamPlayersMap[team.id] || []).length === 0}
                                           >
-                                            Exportar jugadores
+                                            Exportar Excel
+                                          </button>
+
+                                          <button
+                                            className="btn btn-sm btn-outline-info mb-1"
+                                            onClick={() => handleExportPlayersPdf(team.id, team.nombre)}
+                                            disabled={!teamPlayersMap[team.id] || (teamPlayersMap[team.id] || []).length === 0}
+                                          >
+                                            Exportar PDF
                                           </button>
 
                                           <button
@@ -955,7 +1020,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                         </div>
                                         <div className="btn-group-vertical">
                                           <button className="btn btn-sm btn-outline-primary mb-1" onClick={() => { if (teamPlayersMap[team.id]) { setTeamPlayersMap(prev => { const copy = { ...prev }; delete copy[team.id]; return copy; }); } else { handleViewPlayers(team.id); } }}>{teamPlayersMap[team.id] ? 'Ocultar jugadores' : 'Ver jugadores'}</button>
-                                          <button className="btn btn-sm btn-outline-success mb-1" onClick={() => handleExportPlayers(team.id, team.nombre)} disabled={!teamPlayersMap[team.id] || (teamPlayersMap[team.id] || []).length === 0}>Exportar jugadores</button>
+                                          <button className="btn btn-sm btn-outline-success mb-1" onClick={() => handleExportPlayers(team.id, team.nombre)} disabled={!teamPlayersMap[team.id] || (teamPlayersMap[team.id] || []).length === 0}>Exportar Excel</button>
+                                          <button className="btn btn-sm btn-outline-info mb-1" onClick={() => handleExportPlayersPdf(team.id, team.nombre)} disabled={!teamPlayersMap[team.id] || (teamPlayersMap[team.id] || []).length === 0}>Exportar PDF</button>
                                           <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteEquipo(team)}>Eliminar equipo</button>
                                         </div>
                                       </div>
