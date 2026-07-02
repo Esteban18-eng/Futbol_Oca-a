@@ -74,28 +74,28 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                         className="btn btn-sm w-100 mb-1 text-start"
                         onClick={onAddAdmin}
                       >
-                        ➕ Agregar Administrador
+                        Agregar Administrador
                       </button>
                       
                       <button 
                         className="btn btn-sm w-100 mb-1 text-start"
                         onClick={onAddCoach}
                       >
-                        👨‍🏫 Agregar Entrenador
+                        Agregar Entrenador
                       </button>
                       
                       <button 
                         className="btn btn-sm w-100 mb-1 text-start"
                         onClick={onAddSchool}
                       >
-                        🏫 Agregar Escuela
+                        Agregar Escuela
                       </button>
                       
                       <button 
                         className="btn btn-sm w-100 mb-1 text-start"
                         onClick={onViewTeams}
                       >
-                        🏟️ Ver equipos inscritos
+                        Ver equipos inscritos
                       </button>
                       
                       <button 
@@ -103,7 +103,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                         onClick={onViewSignatureSettings}
                         title="Configurar tu firma para incluirla en documentos"
                       >
-                        ✍️ Configurar Mi Firma
+                        Configurar Mi Firma
                       </button>
                       
                       <hr className="my-2" />
@@ -112,7 +112,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
                         className="btn btn-sm w-100 mb-1 text-start text-danger"
                         onClick={onLogout}
                       >
-                        🚪 Cerrar sesión
+                        Cerrar sesión
                       </button>
                     </div>
                   </div>

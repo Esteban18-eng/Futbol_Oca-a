@@ -99,14 +99,14 @@ const CoachHeader: React.FC<CoachHeaderProps> = ({
                         onClick={onAddPlayer}
                         aria-label="Agregar nuevo jugador"
                       >
-                        ➕ Agregar Jugador
+                        Agregar Jugador
                       </button>
                       <button
                         className="btn btn-secondary w-100 mb-2"
                         onClick={onOpenTeamRegistration}
                         aria-label="Inscribir equipo por categoría"
                       >
-                        🏅 Inscribir Equipo
+                        Inscribir Equipo
                       </button>
                       <hr className="my-2" />
                       
@@ -115,7 +115,7 @@ const CoachHeader: React.FC<CoachHeaderProps> = ({
                         onClick={onLogout}
                         aria-label="Cerrar sesión"
                       >
-                        🚪 Cerrar sesión
+                        Cerrar sesión
                       </button>
                     </div>
                   </div>

@@ -129,7 +129,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
             setUrlType(type);
             
             if (type === 'folder') {
-                console.error('❌ URL de carpeta detectada - no se puede cargar imagen');
+                console.error('URL de carpeta detectada - no se puede cargar imagen');
                 setImageError(true);
                 return;
             }
@@ -149,7 +149,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                 
                 const handleLoad = () => {
                     if (isMountedRef.current) {
-                        console.log(`✅ Imagen cargada correctamente:`, url);
+                        console.log(`Imagen cargada correctamente:`, url);
                         setImageLoaded(true);
                         setImageError(false);
                     }
@@ -157,7 +157,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                 
                 const handleError = () => {
                     if (isMountedRef.current) {
-                        console.error(`❌ Error cargando imagen:`, url);
+                        console.error(`Error cargando imagen:`, url);
                         handleImageError();
                     }
                 };
@@ -280,7 +280,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         
         const { fileChanges } = prepareSaveData();
         
-        console.log('📤 Guardando jugador con cambios:', {
+        console.log('Guardando jugador con cambios:', {
             datos: hasChanges(),
             archivos: Object.keys(fileChanges).filter(key => fileChanges[key as keyof LocalPlayerFiles])
         });
@@ -296,10 +296,10 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         
         // Si hay archivos para actualizar, pasarlos a onSave
         if (Object.keys(filesToUpdate).length > 0) {
-            console.log('📁 Archivos a actualizar:', filesToUpdate);
+            console.log('Archivos a actualizar:', filesToUpdate);
             onSave(filesToUpdate);
         } else {
-            console.log('ℹ️ No hay cambios en archivos');
+            console.log('No hay cambios en archivos');
             onSave();
         }
         
@@ -364,11 +364,11 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
     const handleImageError = useCallback(() => {
         if (!isMountedRef.current) return;
         
-        console.error(`❌ Error cargando la imagen (intento ${currentUrlIndex + 1}/${imageUrls.length}):`, convertedImageUrl);
+        console.error(`Error cargando la imagen (intento ${currentUrlIndex + 1}/${imageUrls.length}):`, convertedImageUrl);
         
         if (currentUrlIndex < imageUrls.length - 1) {
             const nextIndex = currentUrlIndex + 1;
-            console.log(`🔄 Intentando con siguiente URL (${nextIndex + 1}/${imageUrls.length}):`, imageUrls[nextIndex]);
+            console.log(`Intentando con siguiente URL (${nextIndex + 1}/${imageUrls.length}):`, imageUrls[nextIndex]);
             setCurrentUrlIndex(nextIndex);
             setConvertedImageUrl(imageUrls[nextIndex]);
             setImageError(false);
@@ -376,14 +376,14 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         } else {
             setImageError(true);
             setImageLoaded(false);
-            console.log('❌ Todas las URLs fallaron');
+            console.log('Todas las URLs fallaron');
         }
     }, [currentUrlIndex, imageUrls, convertedImageUrl]);
 
     const reloadImage = useCallback(() => {
         if (!isMountedRef.current) return;
         
-        console.log('🔄 Reintentando cargar imagen desde el principio...');
+        console.log('Reintentando cargar imagen desde el principio...');
         setImageError(false);
         setImageLoaded(false);
         setCurrentUrlIndex(0);
@@ -473,7 +473,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                                     />
                                     {player.foto_perfil_url && !localFiles.foto_perfil && (
                                         <div className="player-current-photo-note">
-                                            ⚠️ Manteniendo foto actual
+                                            Manteniendo foto actual
                                         </div>
                                     )}
                                 </div>
@@ -515,7 +515,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                                         <div className="player-photo-error">
                                             {urlType === 'folder' ? (
                                                 <>
-                                                    <p>❌ URL incorrecta</p>
+                                                    <p>URL incorrecta</p>
                                                     <p className="error-detail">
                                                         Tienes una URL de carpeta, no de archivo
                                                     </p>
@@ -535,21 +535,21 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                                                         rel="noopener noreferrer"
                                                         className="drive-link-btn"
                                                     >
-                                                        🔗 Abrir carpeta en Drive
+                                                        Abrir carpeta en Drive
                                                     </a>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <p>❌ No se pudo cargar la imagen</p>
+                                                    <p>No se pudo cargar la imagen</p>
                                                     <p className="error-detail">
                                                         Intentadas {imageUrls.length} URLs
                                                     </p>
                                                     <div className="diagnostic-buttons">
                                                         <button className="retry-btn" onClick={reloadImage}>
-                                                            🔄 Reintentar
+                                                            Reintentar
                                                         </button>
                                                         <button className="diagnostic-btn" onClick={runDiagnostic}>
-                                                            🔍 Diagnosticar
+                                                            Diagnosticar
                                                         </button>
                                                         <a 
                                                             href={player.foto_perfil_url} 
@@ -557,7 +557,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                                                             rel="noopener noreferrer"
                                                             className="drive-link-btn"
                                                         >
-                                                            🔗 Abrir en Drive
+                                                            Abrir en Drive
                                                         </a>
                                                     </div>
                                                     {showDiagnostic && diagnosticInfo && (

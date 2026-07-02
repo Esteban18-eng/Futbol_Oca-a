@@ -114,14 +114,14 @@ const Login: React.FC = () => {
   // Función para recuperar contraseña via email (Supabase)
   const handleRecoverPasswordByEmail = async () => {
     if (!recoveryEmail.trim()) {
-      setRecoveryMessage('❌ Por favor ingresa tu email');
+      setRecoveryMessage('Por favor ingresa tu email');
       return;
     }
 
     // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recoveryEmail.trim())) {
-      setRecoveryMessage('❌ Por favor ingresa un email válido');
+      setRecoveryMessage('Por favor ingresa un email válido');
       return;
     }
 
@@ -140,7 +140,7 @@ const Login: React.FC = () => {
 
       if (userCheck.data && !userCheck.data.activo) {
         setRecoveryMessage(`
-          ⚠️ CUENTA DESACTIVADA
+          CUENTA DESACTIVADA
           
           Usuario: ${userCheck.data.nombre} ${userCheck.data.apellido}
           Email: ${userCheck.data.email}
@@ -148,7 +148,7 @@ const Login: React.FC = () => {
           Tu cuenta está desactivada.
           Contacta al administrador para reactivarla.
           
-          👨‍💼 Administrador: ${adminContactInfo.email}
+          Administrador: ${adminContactInfo.email}
         `);
         setRecoveryLoading(false);
         return;
@@ -160,7 +160,7 @@ const Login: React.FC = () => {
       if (result.error) {
         console.error('Error enviando email de recuperación:', result.error);
         
-        let errorMessage = '❌ No pudimos enviar el email automáticamente.\n\n';
+        let errorMessage = 'No pudimos enviar el email automáticamente.\n\n';
         
         if (result.error.message.includes('rate limit')) {
           errorMessage += 'Demasiados intentos. Por favor espera unos minutos e intenta nuevamente.';
@@ -175,19 +175,19 @@ const Login: React.FC = () => {
         setRecoveryMessage(errorMessage);
       } else {
         setRecoveryMessage(`
-          ✅ EMAIL ENVIADO CON ÉXITO
+          EMAIL ENVIADO CON ÉXITO
           
           Se ha enviado un enlace de recuperación a:
           **${recoveryEmail}**
           
-          📝 INSTRUCCIONES:
+          INSTRUCCIONES:
           1. Revisa tu bandeja de entrada
           2. Busca el email de "Restablecer contraseña"
           3. Haz clic en el enlace del email
           4. Sigue las instrucciones para crear una nueva contraseña
           
-          ⏰ El enlace expira en 24 horas.
-          📧 Si no ves el email, revisa la carpeta de SPAM o CORREO NO DESEADO
+          El enlace expira en 24 horas.
+          Si no ves el email, revisa la carpeta de SPAM o CORREO NO DESEADO
           
           ¿No recibiste el email?
           • Espera unos minutos
@@ -206,39 +206,39 @@ const Login: React.FC = () => {
 
   // Función para mostrar opciones de contacto con el administrador
   const handleShowContactOptions = () => {
-    const userInfo = recoveryEmail ? `\n📧 Tu email: ${recoveryEmail}` : '';
+    const userInfo = recoveryEmail ? `\nTu email: ${recoveryEmail}` : '';
     
     setRecoveryMessage(`
-      📞 CONTACTA AL ADMINISTRADOR
+      CONTACTA AL ADMINISTRADOR
       
       Si no puedes recuperar tu contraseña automáticamente,
       contacta al administrador del sistema:${userInfo}
       
-      👨‍💼 INFORMACIÓN DE CONTACTO:
+      INFORMACIÓN DE CONTACTO:
       • Email: ${adminContactInfo.email}
       • ${adminContactInfo.phone ? `Teléfono: ${adminContactInfo.phone}\n` : ''}
       • Oficina: ${adminContactInfo.office}
       
-      📋 INFORMACIÓN QUE DEBES PROPORCIONAR:
+      INFORMACIÓN QUE DEBES PROPORCIONAR:
       1. Tu nombre completo
       2. Tu email registrado
       3. Tu escuela (si eres entrenador)
       4. Descripción del problema
       
-      ⏰ TIEMPO DE RESPUESTA:
+      TIEMPO DE RESPUESTA:
       • Generalmente responde en 24-48 horas
       • Días hábiles de lunes a viernes
       • Horario de atención: 8:00 AM - 5:00 PM
       
-      🔧 EL ADMINISTRADOR PUEDE AYUDARTE CON:
+      EL ADMINISTRADOR PUEDE AYUDARTE CON:
       • Reactivar tu cuenta
       • Restablecer tu contraseña
       • Solucionar problemas de acceso
       • Responder preguntas sobre el sistema
       
       ¿Ya contactaste al administrador?
-      ✅ Sí - Espera su respuesta por email
-      ❌ No - Usa la información de contacto arriba
+      Sí - Espera su respuesta por email
+      No - Usa la información de contacto arriba
     `);
   };
 
@@ -290,7 +290,7 @@ const Login: React.FC = () => {
         </div>
 
         <div className="login-section-title">
-          {showForgotPassword ? '🔐 RECUPERAR CONTRASEÑA' : 'INICIO DE SESIÓN'}
+          {showForgotPassword ? 'RECUPERAR CONTRASEÑA' : 'INICIO DE SESIÓN'}
         </div>
 
         {error && (
@@ -310,7 +310,7 @@ const Login: React.FC = () => {
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label htmlFor="email" className="form-label">
-                  📧 EMAIL <span className="text-danger">*</span>
+                   EMAIL <span className="text-danger">*</span>
                 </label>
                 <input
                   type="email"
@@ -329,7 +329,7 @@ const Login: React.FC = () => {
 
               <div className="mb-4">
                 <label htmlFor="password" className="form-label">
-                  🔑 CONTRASEÑA <span className="text-danger">*</span>
+                  CONTRASEÑA <span className="text-danger">*</span>
                 </label>
                 <div className="input-group">
                   <input
@@ -351,7 +351,7 @@ const Login: React.FC = () => {
                     disabled={isLoading}
                     title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >
-                    {showPassword ? "🙈 Ocultar" : "👁️ Mostrar"}
+                    {showPassword ? "Ocultar" : "Mostrar"}
                   </button>
                 </div>
               </div>
@@ -368,7 +368,7 @@ const Login: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <span className="me-2">🚪</span>
+                    <span className="me-2"></span>
                     Entrar al Sistema
                   </>
                 )}
@@ -385,14 +385,14 @@ const Login: React.FC = () => {
                 }}
                 disabled={isLoading}
               >
-                <span className="me-1">🔓</span>
+                <span className="me-1"></span>
                 ¿Olvidaste tu contraseña?
               </button>
             </div>
 
             <div className="login-info-text mt-4 pt-3 border-top">
               <div className="d-flex align-items-center justify-content-center">
-                <span className="me-2">ℹ️</span>
+                <span className="me-2"></span>
                 <div className="text-center">
                   <small>
                     Las cuentas son creadas y gestionadas<br />
@@ -412,7 +412,7 @@ const Login: React.FC = () => {
           <>
             <div className="recovery-section">
               <div className="d-flex align-items-center justify-content-between mb-3">
-                <h5 className="mb-0">🔐 Recuperar Contraseña</h5>
+                <h5 className="mb-0">Recuperar Contraseña</h5>
                 <button
                   type="button"
                   className="btn btn-sm btn-link text-decoration-none"
@@ -428,7 +428,7 @@ const Login: React.FC = () => {
               
               <div className="mb-3">
                 <label htmlFor="recoveryEmail" className="form-label">
-                  📧 Ingresa tu email registrado:
+                  Ingresa tu email registrado:
                 </label>
                 <input
                   type="email"
@@ -462,7 +462,7 @@ const Login: React.FC = () => {
                           </>
                         ) : (
                           <>
-                            <span className="me-2">📤</span>
+                            <span className="me-2"></span>
                             Enviar enlace de recuperación
                           </>
                         )}
@@ -476,7 +476,7 @@ const Login: React.FC = () => {
                         onClick={handleShowContactOptions}
                         disabled={recoveryLoading}
                       >
-                        <span className="me-2">👨‍💼</span>
+                        <span className="me-2"></span>
                         Mostrar información de contacto
                       </button>
                     )}
@@ -525,7 +525,7 @@ const Login: React.FC = () => {
               {!recoveryMessage && (
                 <div className="alert alert-warning mt-3">
                   <div className="d-flex">
-                    <span className="me-2">⚠️</span>
+                    <span className="me-2"></span>
                     <div>
                       <small>
                         <strong>IMPORTANTE:</strong> 
@@ -543,7 +543,7 @@ const Login: React.FC = () => {
               {recoveryMessage && recoveryMessage.includes('✅') && (
                 <div className="alert alert-light border mt-3">
                   <div className="d-flex">
-                    <span className="me-2">💡</span>
+                    <span className="me-2"></span>
                     <div>
                       <small className="text-muted">
                         <strong>Consejos:</strong>

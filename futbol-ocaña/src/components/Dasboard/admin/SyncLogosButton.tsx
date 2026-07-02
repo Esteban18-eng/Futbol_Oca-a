@@ -53,7 +53,7 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
     setSummary(null);
 
     try {
-      addLog('🚀 Iniciando sincronización de logos...');
+      addLog('Iniciando sincronización de logos...');
       
       // Obtener todas las escuelas
       const { data: escuelas, error } = await supabase
@@ -62,16 +62,16 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
         .order('nombre');
 
       if (error) {
-        addLog(`❌ Error obteniendo escuelas: ${error.message}`);
+        addLog(`Error obteniendo escuelas: ${error.message}`);
         throw error;
       }
 
       if (!escuelas || escuelas.length === 0) {
-        addLog('ℹ️ No se encontraron escuelas');
+        addLog('No se encontraron escuelas');
         return;
       }
 
-      addLog(`📊 Encontradas ${escuelas.length} escuelas`);
+      addLog(`Encontradas ${escuelas.length} escuelas`);
       
       let updated = 0;
       let skipped = 0;
@@ -80,11 +80,11 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
 
       // Procesar cada escuela
       for (const escuela of escuelas) {
-        addLog(`🔍 Procesando: ${escuela.nombre}`);
+        addLog(`Procesando: ${escuela.nombre}`);
         
         // Si ya tiene logo, saltar
         if (escuela.logo_url) {
-          addLog(`   ⏩ Ya tiene logo asignado`);
+          addLog(`Ya tiene logo asignado`);
           skipped++;
           details.push({ escuela: escuela.nombre, status: 'skipped' });
           continue;
@@ -94,7 +94,7 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
         const logoFileName = LOGO_MAPPING[escuela.nombre];
         
         if (!logoFileName) {
-          addLog(`   ⚠️ No se encontró logo para esta escuela`);
+          addLog(`No se encontró logo para esta escuela`);
           skipped++;
           details.push({ escuela: escuela.nombre, status: 'no_logo' });
           continue;
@@ -110,8 +110,8 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
         if (logoFileName.toLowerCase().endsWith('.jpg') || logoFileName.toLowerCase().endsWith('.jpeg')) fileType = 'image/jpeg';
         if (logoFileName.toLowerCase().endsWith('.webp')) fileType = 'image/webp';
 
-        addLog(`   ✅ Logo encontrado: ${logoFileName}`);
-        addLog(`   📎 URL: ${logoUrl}`);
+        addLog(`   Logo encontrado: ${logoFileName}`);
+        addLog(`   URL: ${logoUrl}`);
 
         // Actualizar en la base de datos
         try {
@@ -128,12 +128,12 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
             throw updateError;
           }
 
-          addLog(`   💾 Actualizado exitosamente`);
+          addLog(`Actualizado exitosamente`);
           updated++;
           details.push({ escuela: escuela.nombre, status: 'updated', logoUrl });
 
         } catch (updateError: any) {
-          addLog(`   ❌ Error: ${updateError.message}`);
+          addLog(`Error: ${updateError.message}`);
           errors++;
           details.push({ escuela: escuela.nombre, status: 'error', error: updateError.message });
         }
@@ -152,27 +152,27 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
 
       setSummary(result);
       
-      addLog('\n📊 RESUMEN FINAL:');
-      addLog(`✅ Actualizadas: ${updated}`);
-      addLog(`⏩ Saltadas: ${skipped}`);
-      addLog(`❌ Errores: ${errors}`);
-      addLog(`📋 Total procesadas: ${escuelas.length}`);
+      addLog('\nRESUMEN FINAL:');
+      addLog(`Actualizadas: ${updated}`);
+      addLog(`Saltadas: ${skipped}`);
+      addLog(`Errores: ${errors}`);
+      addLog(`Total procesadas: ${escuelas.length}`);
 
       if (errors === 0) {
-        addLog('\n🎉 ¡Sincronización completada con éxito!');
+        addLog('\n¡Sincronización completada con éxito!');
         setTimeout(() => {
-          alert('✅ Logos sincronizados exitosamente!');
+          alert('Logos sincronizados exitosamente!');
         }, 500);
       } else {
-        addLog('\n⚠️ Sincronización completada con errores.');
+        addLog('\nSincronización completada con errores.');
         setTimeout(() => {
-          alert(`⚠️ Sincronización completada con ${errors} errores. Revisa la consola.`);
+          alert(`Sincronización completada con ${errors} errores. Revisa la consola.`);
         }, 500);
       }
 
     } catch (error: any) {
-      addLog(`💥 Error crítico: ${error.message}`);
-      alert('❌ Error sincronizando logos. Revisa la consola.');
+      addLog(`Error crítico: ${error.message}`);
+      alert('Error sincronizando logos. Revisa la consola.');
     } finally {
       setLoading(false);
     }
@@ -183,7 +183,7 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
     setLogs([]);
     
     try {
-      addLog('🔍 Verificando estado actual de logos...');
+      addLog('Verificando estado actual de logos...');
       
       const { data: escuelas, error } = await supabase
         .from('escuelas')
@@ -196,19 +196,19 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
       const withLogo = escuelas?.filter(e => e.logo_url)?.length || 0;
       const withoutLogo = total - withLogo;
 
-      addLog(`📊 Total escuelas: ${total}`);
-      addLog(`✅ Con logo: ${withLogo}`);
-      addLog(`❌ Sin logo: ${withoutLogo}`);
+      addLog(`Total escuelas: ${total}`);
+      addLog(`Con logo: ${withLogo}`);
+      addLog(`Sin logo: ${withoutLogo}`);
 
       if (withoutLogo > 0) {
-        addLog('\n📋 Escuelas sin logo:');
+        addLog('\nEscuelas sin logo:');
         escuelas
           ?.filter(e => !e.logo_url)
           .forEach(e => addLog(`   • ${e.nombre}`));
       }
 
     } catch (error: any) {
-      addLog(`❌ Error: ${error.message}`);
+      addLog(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -372,15 +372,15 @@ const SyncLogosButton: React.FC<SyncLogosButtonProps> = ({ show, onClose }) => {
                 }}>
                   {logs.map((log, index) => (
                     <div key={index} className="log-entry mb-1">
-                      {log.includes('✅') ? (
+                      {log.includes('') ? (
                         <span className="text-success">{log}</span>
-                      ) : log.includes('❌') || log.includes('💥') ? (
+                      ) : log.includes('') || log.includes('') ? (
                         <span className="text-danger">{log}</span>
-                      ) : log.includes('⚠️') ? (
+                      ) : log.includes('') ? (
                         <span className="text-warning">{log}</span>
-                      ) : log.includes('🔍') || log.includes('📊') ? (
+                      ) : log.includes('') || log.includes('') ? (
                         <span className="text-info">{log}</span>
-                      ) : log.includes('🚀') || log.includes('🎉') ? (
+                      ) : log.includes('') || log.includes('') ? (
                         <span className="text-primary">{log}</span>
                       ) : (
                         <span>{log}</span>

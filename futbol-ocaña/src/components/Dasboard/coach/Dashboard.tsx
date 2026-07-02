@@ -1075,7 +1075,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       if (isMounted) {
         setIsEditing(false);
         resetFiles();
-        setProcessingMessage('✅ Jugador actualizado exitosamente');
+        setProcessingMessage('Jugador actualizado exitosamente');
       }
       
     } catch (err: any) {
@@ -1691,7 +1691,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setIsProcessing(true);
       setProcessingMessage('Generando Paz y Salvo...');
       
-      console.log('📄 Generando Paz y Salvo:', data);
+      console.log('Generando Paz y Salvo:', data);
       
       await new Promise(resolve => setTimeout(resolve, 2000));
       
@@ -1919,7 +1919,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
                     <div className="search-result mt-3">
                       {searchResult.found ? (
                         <div className="alert alert-success py-2 px-3">
-                          <h6 className="mb-1">✅ Jugador encontrado</h6>
+                          <h6 className="mb-1">Jugador encontrado</h6>
                           <p className="mb-1"><strong>Nombre:</strong> {searchResult.player?.nombre} {searchResult.player?.apellido}</p>
                           <p className="mb-1"><strong>Edad:</strong> {searchResult.player && calculateAge(searchResult.player.fecha_nacimiento)} años</p>
                           <p className="mb-1"><strong>Escuela:</strong> {searchResult.player && escuelas.find(esc => esc.id === searchResult.player!.escuela_id)?.nombre || 'Sin escuela'}</p>

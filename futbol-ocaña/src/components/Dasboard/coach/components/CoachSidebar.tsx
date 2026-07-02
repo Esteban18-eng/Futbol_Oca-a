@@ -69,7 +69,7 @@ const CoachSidebar: React.FC<CoachSidebarPropsWithImport> = ({
                       className={`btn btn-sm w-100 mb-1 text-start ${!selectedCategory ? 'btn-primary' : 'btn-outline-secondary'}`}
                       onClick={onClearCategory}
                     >
-                      <span className="me-2">🏆</span>
+                      <span className="me-2"></span>
                       Todas las categorías
                       {!selectedCategory && <span className="float-end">✓</span>}
                     </button>
@@ -82,7 +82,7 @@ const CoachSidebar: React.FC<CoachSidebarPropsWithImport> = ({
                         }`}
                         onClick={() => onCategorySelect(categoria.id)}
                       >
-                        <span className="me-2">⚽</span>
+                        <span className="me-2"></span>
                         {categoria.nombre}
                         {selectedCategory === categoria.id && <span className="float-end">✓</span>}
                       </button>
@@ -118,7 +118,7 @@ const CoachSidebar: React.FC<CoachSidebarPropsWithImport> = ({
               title="Importar jugadores desde Excel"
               style={{ minWidth: 'auto' }}
             >
-              <span className="me-1">📊</span>
+              <span className="me-1"></span>
               <span className="d-none d-md-inline">Importar</span>
             </button>
           </div>
@@ -127,7 +127,7 @@ const CoachSidebar: React.FC<CoachSidebarPropsWithImport> = ({
           {selectedCategory && (
             <div className="mb-3">
               <span className="badge bg-primary d-flex align-items-center justify-content-between">
-                <span>📋 {getSelectedCategoryName()}</span>
+                <span>📋{getSelectedCategoryName()}</span>
                 <button 
                   className="btn btn-sm p-0 ms-2 text-white border-0 bg-transparent"
                   onClick={onClearCategory}

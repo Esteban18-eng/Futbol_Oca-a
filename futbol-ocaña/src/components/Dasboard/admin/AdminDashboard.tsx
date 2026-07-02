@@ -540,7 +540,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       document.body.removeChild(link);
       
       setTimeout(() => {
-        alert(`✅ Documento "${documentName}" descargado correctamente`);
+        alert(`Documento "${documentName}" descargado correctamente`);
       }, 500);
     } catch (err: any) {
       setError(`Error al descargar documento: ${err.message}`);
@@ -563,7 +563,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       link.click();
       document.body.removeChild(link);
       setTimeout(() => {
-        alert(`✅ Foto de perfil descargada como ${filename}`);
+        alert(`Foto de perfil descargada como ${filename}`);
       }, 500);
     } catch (err: any) {
       setError(`Error al descargar la foto de perfil: ${err.message}`);
@@ -741,12 +741,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
             <div className="col-lg-8 col-xl-9">
               <div className="main-content">
                 <div className="admin-stats-section">
-                  <h4 className="section-title">📊 ESTADÍSTICAS GENERALES DEL SISTEMA</h4>
+                  <h4 className="section-title">ESTADÍSTICAS GENERALES DEL SISTEMA</h4>
                   
                   <div className="row g-3">
                     <div className="col-md-4">
                       <div className="stat-card bg-primary text-white">
-                        <div className="stat-icon">👥</div>
+                        <div className="stat-icon"></div>
                         <div className="stat-number">{stats.totalJugadores}</div>
                         <div className="stat-label">Jugadores Activos</div>
                       </div>
@@ -754,7 +754,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                     
                     <div className="col-md-4">
                       <div className="stat-card bg-success text-white">
-                        <div className="stat-icon">🏫</div>
+                        <div className="stat-icon"></div>
                         <div className="stat-number">{stats.totalEscuelas}</div>
                         <div className="stat-label">Escuelas Registradas</div>
                       </div>
@@ -762,7 +762,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                     
                     <div className="col-md-4">
                       <div className="stat-card bg-warning text-white">
-                        <div className="stat-icon">👨‍💼</div>
+                        <div className="stat-icon"></div>
                         <div className="stat-number">{stats.totalAdmins}</div>
                         <div className="stat-label">Administradores</div>
                       </div>
@@ -770,7 +770,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                     
                     <div className="col-md-4">
                       <div className="stat-card bg-info text-white">
-                        <div className="stat-icon">👨‍🏫</div>
+                        <div className="stat-icon"></div>
                         <div className="stat-number">{stats.totalCoaches}</div>
                         <div className="stat-label">Entrenadores</div>
                       </div>
@@ -778,7 +778,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                     
                     <div className="col-md-4">
                       <div className="stat-card bg-secondary text-white">
-                        <div className="stat-icon">⚽</div>
+                        <div className="stat-icon"></div>
                         <div className="stat-number">{stats.totalCategorias}</div>
                         <div className="stat-label">Categorías</div>
                       </div>
@@ -786,7 +786,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
 
                     <div className="col-md-4">
                       <div className="stat-card bg-dark text-white">
-                        <div className="stat-icon">📈</div>
+                        <div className="stat-icon"></div>
                         <div className="stat-number">{filteredPlayers.length}</div>
                         <div className="stat-label">
                           {selectedCategory || selectedSchool || searchTerm ? 
@@ -798,7 +798,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
 
                     <div className="col-md-4">
                       <div className="stat-card bg-secondary text-white">
-                        <div className="stat-icon">🏅</div>
                         <div className="stat-number">{teams.length}</div>
                         <div className="stat-label">Equipos Inscritos</div>
                       </div>
@@ -815,7 +814,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                       onClick={handleSyncLogos}
                       onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
                       onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                        <div className="stat-icon">🖼️</div>
+                        <div className="stat-icon"></div>
                         <div className="stat-number" style={{ fontSize: '2rem' }}>
                           <i className="fas fa-sync-alt"></i>
                         </div>

@@ -105,7 +105,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ show, userProfile, onClose 
                 alert('Funcionalidad de editar perfil en desarrollo');
               }}
             >
-              ✏️ Editar Perfil
+              Editar Perfil
             </button>
             <button 
               className="btn btn-secondary action-btn"

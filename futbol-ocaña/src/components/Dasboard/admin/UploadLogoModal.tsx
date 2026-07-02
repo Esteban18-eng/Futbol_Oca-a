@@ -210,7 +210,7 @@ const UploadLogoModal: React.FC<UploadLogoModalProps> = ({
                 className="file-input"
               />
               <label htmlFor="logo-file" className="file-label">
-                <div className="file-icon">📁</div>
+                <div className="file-icon"></div>
                 <div className="file-text">
                   <strong>Seleccionar archivo</strong>
                   <small>JPG, PNG, WEBP o SVG (máx. 5MB)</small>

@@ -246,7 +246,7 @@ const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
                 {/* Información sobre logos */}
                 {!logoPreview && (
                   <div className="logo-info-card alert alert-light mt-3">
-                    <h6 className="alert-heading">💡 ¿Por qué agregar un logo?</h6>
+                    <h6 className="alert-heading">¿Por qué agregar un logo?</h6>
                     <ul className="mb-0">
                       <li>Identifica los documentos oficiales de tu escuela</li>
                       <li>Da profesionalismo a certificados y documentos</li>

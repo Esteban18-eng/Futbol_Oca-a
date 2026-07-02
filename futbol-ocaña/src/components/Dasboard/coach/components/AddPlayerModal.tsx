@@ -34,7 +34,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 
   // Función para manejar la selección de archivos
   const handleFileSelect = (fileType: keyof typeof selectedFiles, file: File | null) => {
-    console.log('📁 Archivo seleccionado:', {
+    console.log('Archivo seleccionado:', {
       tipo: fileType,
       archivo: file ? file.name : 'null',
       tamaño: file ? file.size + ' bytes' : 'N/A',
@@ -94,13 +94,13 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 
         <div className="modal-body">
           <form onSubmit={(e) => {
-            console.log('✅ Formulario enviado');
-            console.log('📋 Datos del jugador:', newPlayer);
+            console.log('Formulario enviado');
+            console.log('Datos del jugador:', newPlayer);
             onSubmit(e);
           }}>
             {/* Sección de archivos */}
             <div className="files-section mb-4">
-              <h5 className="mb-3">📁 ARCHIVOS DEL JUGADOR</h5>
+              <h5 className="mb-3">ARCHIVOS DEL JUGADOR</h5>
               
               <div className="row">
                 <div className="col-md-4">
@@ -157,7 +157,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
             <hr />
 
             {/* Datos personales */}
-            <h5 className="mb-3">👤 DATOS PERSONALES</h5>
+            <h5 className="mb-3">DATOS PERSONALES</h5>
             
             <div className="row">
               <div className="col-md-6">
@@ -236,7 +236,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 
             <hr />
 
-            <h5 className="mb-3">📍 UBICACIÓN</h5>
+            <h5 className="mb-3">UBICACIÓN</h5>
             
             <div className="row">
               <div className="col-md-4">
@@ -311,7 +311,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 
             <hr />
 
-            <h5 className="mb-3">⚽ INFORMACIÓN DEPORTIVA</h5>
+            <h5 className="mb-3">INFORMACIÓN DEPORTIVA</h5>
 
             <div className="row">
               <div className="col-md-6">
@@ -365,7 +365,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 
             <hr />
 
-            <h5 className="mb-3">🏥 INFORMACIÓN MÉDICA</h5>
+            <h5 className="mb-3">INFORMACIÓN MÉDICA</h5>
 
             <div className="row">
               <div className="col-md-6">
@@ -419,7 +419,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                     Creando Jugador...
                   </>
                 ) : (
-                  <>✅ Crear Jugador</>
+                  <>Crear Jugador</>
                 )}
               </button>
               <button
@@ -428,7 +428,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                 onClick={onClose}
                 disabled={isUploading}
               >
-                ❌ Cancelar
+                Cancelar
               </button>
             </div>
           </form>

@@ -52,7 +52,7 @@ const DocumentActionsModal: React.FC<DocumentActionsModalProps> = ({
       <div className="document-actions-overlay" onClick={onClose}>
         <div className="document-actions-modal" onClick={(e) => e.stopPropagation()}>
           <div className="document-actions-header">
-            <h3>📁 Documentos de {player.nombre} {player.apellido}</h3>
+            <h3>Documentos de {player.nombre} {player.apellido}</h3>
             <button className="close-btn" onClick={onClose}>✕</button>
           </div>
           <div className="document-actions-body">
@@ -75,7 +75,7 @@ const DocumentActionsModal: React.FC<DocumentActionsModalProps> = ({
     <div className="document-actions-overlay" onClick={onClose}>
       <div className="document-actions-modal" onClick={(e) => e.stopPropagation()}>
         <div className="document-actions-header">
-          <h3>📁 Documentos de {player.nombre} {player.apellido}</h3>
+          <h3>Documentos de {player.nombre} {player.apellido}</h3>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 
@@ -96,14 +96,14 @@ const DocumentActionsModal: React.FC<DocumentActionsModalProps> = ({
                     onClick={() => handlePrint(doc.url, doc.name)}
                     title="Imprimir documento"
                   >
-                    🖨️ Imprimir
+                    Imprimir
                   </button>
                   <button
                     className="action-btn download-btn"
                     onClick={() => handleDownload(doc.url, doc.name)}
                     title="Descargar documento"
                   >
-                    ⬇️ Descargar
+                    Descargar
                   </button>
                 </div>
               </div>
@@ -117,7 +117,7 @@ const DocumentActionsModal: React.FC<DocumentActionsModalProps> = ({
               className="btn-primary download-all-btn"
               onClick={handleDownloadAll}
             >
-              ⬇️ Descargar Todos los Documentos
+              Descargar Todos los Documentos
             </button>
           )}
           <button className="btn-secondary" onClick={onClose}>

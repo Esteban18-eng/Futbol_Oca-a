@@ -43,7 +43,7 @@ const AdminPlayerItem: React.FC<AdminPlayerItemProps> = ({
       </div>
       
       <div className="player-actions">
-        <span className="badge bg-secondary">👁️ Ver</span>
+        <span className="badge bg-secondary">Ver</span>
       </div>
     </div>
   );

@@ -89,7 +89,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       }`}
                       onClick={() => onCategorySelect(categoria.id)}
                     >
-                      <span className="me-2">⚽</span>
+                      <span className="me-2"></span>
                       {categoria.nombre}
                       {selectedCategory === categoria.id && <span className="float-end">✓</span>}
                     </button>
@@ -129,7 +129,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     className={`btn btn-sm w-100 mb-1 text-start ${!selectedSchool ? 'btn-success' : 'btn-outline-secondary'}`}
                     onClick={onClearSchool}
                   >
-                    <span className="me-2">🏫</span>
+                    <span className="me-2"></span>
                     Todas las escuelas
                     {!selectedSchool && <span className="float-end">✓</span>}
                   </button>
@@ -142,7 +142,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       }`}
                       onClick={() => onSchoolSelect(escuela.id)}
                     >
-                      <span className="me-2">🏫</span>
+                      <span className="me-2"></span>
                       {escuela.nombre}
                       {selectedSchool === escuela.id && <span className="float-end">✓</span>}
                     </button>
@@ -176,7 +176,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <div className="d-flex flex-wrap gap-2 mb-3">
           {selectedCategory && (
             <span className="badge bg-primary d-flex align-items-center">
-              <span>📋 {getSelectedCategoryName()}</span>
+              <span>{getSelectedCategoryName()}</span>
               <button 
                 className="btn btn-sm p-0 ms-2 text-white border-0 bg-transparent"
                 onClick={onClearCategory}
@@ -189,7 +189,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           
           {selectedSchool && (
             <span className="badge bg-success d-flex align-items-center">
-              <span>🏫 {getSelectedSchoolName()}</span>
+              <span>{getSelectedSchoolName()}</span>
               <button 
                 className="btn btn-sm p-0 ms-2 text-white border-0 bg-transparent"
                 onClick={onClearSchool}

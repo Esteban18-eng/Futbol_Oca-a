@@ -139,7 +139,7 @@ const AdminSignatureModal: React.FC<AdminSignatureModalProps> = ({
         saveAdminSignatureUrl(currentAdminId, result.url);
         setCurrentSignatureUrl(result.url);
         setSignatureFile(null);
-        setSuccess('✅ Firma cargada exitosamente. Se usará automáticamente en los documentos de transferencia.');
+        setSuccess('Firma cargada exitosamente. Se usará automáticamente en los documentos de transferencia.');
         setTimeout(() => {
           setSuccess('');
           onHide();
@@ -163,7 +163,7 @@ const AdminSignatureModal: React.FC<AdminSignatureModalProps> = ({
         if (deleted) {
           setCurrentSignatureUrl(null);
           setPreviewUrl(null);
-          setSuccess('✅ Firma eliminada exitosamente');
+          setSuccess('Firma eliminada exitosamente');
           setTimeout(() => {
             setSuccess('');
           }, 2000);
@@ -177,7 +177,7 @@ const AdminSignatureModal: React.FC<AdminSignatureModalProps> = ({
   return (
     <Modal show={show} onHide={onHide} centered size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>⚙️ Configurar Mi Firma</Modal.Title>
+        <Modal.Title>Configurar Mi Firma</Modal.Title>
       </Modal.Header>
 
       <Modal.Body className="admin-signature-modal-body">
@@ -255,7 +255,7 @@ const AdminSignatureModal: React.FC<AdminSignatureModalProps> = ({
           onClick={handleDeleteSignature}
           disabled={!currentSignatureUrl || loading}
         >
-          🗑️ Eliminar Firma
+          Eliminar Firma
         </Button>
         <Button
           variant="secondary"
@@ -269,7 +269,7 @@ const AdminSignatureModal: React.FC<AdminSignatureModalProps> = ({
           onClick={handleUploadSignature}
           disabled={!signatureFile || loading}
         >
-          {loading ? 'Cargando...' : '📤 Cargar Firma'}
+          {loading ? 'Cargando...' : 'Cargar Firma'}
         </Button>
       </Modal.Footer>
     </Modal>

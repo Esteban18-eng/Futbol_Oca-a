@@ -103,7 +103,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
     document.body.removeChild(link);
     
     setTimeout(() => {
-      alert(`✅ Documento "${documentName}" descargado correctamente`);
+      alert(`Documento "${documentName}" descargado correctamente`);
     }, 500);
   };
 
@@ -176,11 +176,11 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
         ? 'El jugador quedó libre y su registro fue actualizado.'
         : 'La escuela del jugador se actualizó correctamente.';
 
-      alert(`✅ PDF generado exitosamente. ${transferMessage}\nDescargue el documento de transferencia ${signatureStatus}.`);
+      alert(`PDF generado exitosamente. ${transferMessage}\nDescargue el documento de transferencia ${signatureStatus}.`);
 
     } catch (error: any) {
       console.error('Error en la transferencia:', error);
-      alert('❌ Error al completar la transferencia. Por favor intente nuevamente.');
+      alert('Error al completar la transferencia. Por favor intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -263,7 +263,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
                   <div className="player-info-item">
                     <span className="player-info-label">Estado:</span>
                     <span className={`player-status-badge ${player.activo ? 'active' : 'inactive'}`}>
-                      {player.activo ? '✅ ACTIVO' : '❌ INACTIVO'}
+                      {player.activo ? 'ACTIVO' : 'INACTIVO'}
                     </span>
                   </div>
                 </div>
@@ -273,7 +273,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
             {/* Información de ubicación y médica */}
             <div className="player-readonly-info">
               <div className="player-info-section">
-                <h4 className="player-section-title">📍 Ubicación</h4>
+                <h4 className="player-section-title">Ubicación</h4>
                 <div className="player-info-grid-readonly">
                   <div className="player-info-item-readonly">
                     <span className="player-info-label-readonly">País:</span>
@@ -291,7 +291,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
               </div>
 
               <div className="player-info-section">
-                <h4 className="player-section-title">🏥 Información Médica</h4>
+                <h4 className="player-section-title">Información Médica</h4>
                 <div className="player-info-grid-readonly">
                   <div className="player-info-item-readonly">
                     <span className="player-info-label-readonly">EPS:</span>
@@ -307,14 +307,14 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
 
             {/* Documentos */}
             <div className="player-documents-section">
-              <h4 className="player-section-title">📁 Documentos</h4>
+              <h4 className="player-section-title">Documentos</h4>
               <div className="player-document-buttons">
                 {player.documento_pdf_url && (
                   <button
                     className="player-doc-btn"
                     onClick={() => handleDocumentOpen(player.documento_pdf_url!, `Documento_${player.documento}.pdf`)}
                   >
-                    <span className="player-doc-icon">📄</span>
+                    <span className="player-doc-icon"></span>
                     <span className="player-doc-text">Ver Documento de Identidad</span>
                   </button>
                 )}
@@ -323,7 +323,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
                     className="player-doc-btn"
                     onClick={() => handleDocumentOpen(player.registro_civil_url!, `Registro_Civil_${player.documento}.pdf`)}
                   >
-                    <span className="player-doc-icon">📋</span>
+                    <span className="player-doc-icon"></span>
                     <span className="player-doc-text">Ver Registro Civil</span>
                   </button>
                 )}
@@ -338,22 +338,22 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
 
           <div className="player-modal-actions">
             <button className="player-action-btn player-transfer-btn" onClick={handleTransfer}>
-              🔄 Hacer Transferencia
+              Hacer Transferencia
             </button>
             <button className="player-action-btn player-delete-btn" onClick={() => onDeletePlayer(player)}>
-              🗑️ Eliminar Jugador
+              Eliminar Jugador
             </button>
             <button className="player-action-btn player-print-btn" onClick={onPrint}>
-              🖨️ Imprimir Información
+              Imprimir Información
             </button>
             {(player.documento_pdf_url || player.registro_civil_url) && (
               <button className="player-action-btn player-download-docs-btn" onClick={handleDownloadDocuments}>
-                📄 Gestionar Documentos
+                Gestionar Documentos
               </button>
             )}
             {player.foto_perfil_url && (
               <button className="player-action-btn player-download-photo-btn" onClick={onDownloadProfilePhoto}>
-                📷 Descargar Foto de Perfil
+                 Descargar Foto de Perfil
               </button>
             )}
             <button className="player-action-btn player-close-action-btn" onClick={onClose}>
@@ -460,7 +460,7 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
             onClick={generatePDFAndTransfer}
             disabled={loading || !fromSchool || !toInstitution || !selectedEscuela}
           >
-            {loading ? 'Procesando...' : '✅ Exportar PDF y Transferir'}
+            {loading ? 'Procesando...' : 'Exportar PDF y Transferir'}
           </Button>
         </Modal.Footer>
       </Modal>
