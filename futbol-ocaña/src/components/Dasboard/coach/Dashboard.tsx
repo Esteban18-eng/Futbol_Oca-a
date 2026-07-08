@@ -392,7 +392,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         nombre: teamName.trim(),
         categoria_id: teamCategoryId,
         estado: selectedTeam.estado
-      }, currentUser.escuela_id || undefined);
+      });
 
       if (result.error) {
         throw result.error;

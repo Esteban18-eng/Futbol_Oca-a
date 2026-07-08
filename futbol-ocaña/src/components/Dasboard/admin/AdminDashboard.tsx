@@ -14,8 +14,8 @@ import {
 } from '../../../services/supabaseClient';
 import { getAdminStats, createAdmin, createCoach, createSchool } from '../../../services/adminServices';
 import { getAllEquipos, getPlayersByEquipo, deleteEquipo, EquipoRegistro } from '../../../services/teamRegistrationService';
-import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx'
+import { DocumentLogoService } from '../../../services/documentLogoService';
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 import AdminPlayerModal from './AdminPlayerModal';
@@ -252,7 +252,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
     XLSX.writeFile(wb, `${(equipoNombre || 'equipo').replace(/[^a-z0-9_\-]/gi,'_')}_jugadores.xlsx`);
   }, [teamPlayersMap, teamSelectedPlayers, categorias, escuelas]);
 
-  const handleExportPlayersPdf = useCallback((equipoId: string, equipoNombre: string) => {
+  const handleExportPlayersPdf = useCallback(async (equipoId: string, equipoNombre: string) => {
     const players = teamPlayersMap[equipoId] || [];
     if (!players.length) return;
 
@@ -263,29 +263,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
       return !!selectedMap[p.id];
     });
 
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text(`Equipo: ${equipoNombre || 'Equipo'}`, 14, 16);
-    doc.setFontSize(10);
-    doc.text(`Jugadores exportados: ${filtered.length}`, 14, 24);
+    const team = teams.find(t => t.id === equipoId);
+    const doc = await DocumentLogoService.generateTeamPlayersPDF(
+      equipoNombre || 'equipo',
+      filtered,
+      team?.escuela_id
+    );
 
-    let y = 36;
-    filtered.forEach((player, index) => {
-      const line = `${index + 1}. ${player.nombre} ${player.apellido} | ${player.documento || '-'} | ${player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString() : '-'} | ${categorias.find(c => c.id === player.categoria_id)?.nombre || player.categoria?.nombre || '-'} | ${escuelas.find(s => s.id === player.escuela_id)?.nombre || player.escuela?.nombre || '-'}`;
-      if (y > 280) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(line, 14, y);
-      y += 8;
-    });
-
-    doc.save(`${(equipoNombre || 'equipo').replace(/[^a-z0-9_\-]/gi,'_')}_jugadores.pdf`);
-  }, [teamPlayersMap, teamSelectedPlayers, categorias, escuelas]);
+    const filename = `${(equipoNombre || 'equipo').replace(/[^a-z0-9_\-]/gi,'_')}_jugadores.pdf`;
+    doc.save(filename);
+  }, [teamPlayersMap, teamSelectedPlayers, teams]);
 
   const handleDeleteEquipo = useCallback(async (team: EquipoRegistro) => {
     if (!confirm(`Eliminar el equipo "${team.nombre}"? Esta acción es irreversible.`)) return;
-    const res = await deleteEquipo(team.id, team.escuela_id);
+    const res = await deleteEquipo(team.id);
     if (res.error) {
       console.error('Error eliminando equipo:', res.error);
       setTeamLoadError(getErrorMessage(res.error));

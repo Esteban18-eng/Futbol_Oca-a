@@ -44,9 +44,12 @@ export class DocumentLogoService {
     roster: Jugador[],
     escuelaId?: string
   ): Promise<jsPDF> {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const tableWidth = pageWidth - margin * 2;
 
-    // Obtener logo de la escuela para watermark
     let logoUrl: string | null = null;
     try {
       logoUrl = await this.getEscuelaLogo(escuelaId);
@@ -59,81 +62,204 @@ export class DocumentLogoService {
       this.addLogoToPDF(doc, { url: logoUrl, position: 'watermark', opacity: 0.08 });
     }
 
-    // Header con nombre exacto del equipo
     doc.setFont('helvetica', 'bold');
-    let headerFontSize = 16;
-    doc.setFontSize(headerFontSize);
+    doc.setFontSize(14);
+    doc.setTextColor(34, 49, 104);
+    doc.text('PLANILLA DE JUGADORES', margin, 20);
 
-    // Ajustar si el nombre es muy largo: dividir en líneas y reducir tamaño si son muchas
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
-    const maxWidth = pageWidth - margin * 2;
-    let lines: string[] = doc.splitTextToSize(teamName, maxWidth);
-    // Si hay muchas líneas, reducir tamaño progresivamente
-    if (lines.length > 3) {
-      headerFontSize = 12;
-      doc.setFontSize(headerFontSize);
-      lines = doc.splitTextToSize(teamName, maxWidth);
-    }
-
-    // Dibujar líneas centradas y calcular Y inicial para la tabla
-    let y = 25;
-    const centerX = pageWidth / 2;
-    const lineHeight = headerFontSize + 2;
-    lines.forEach((ln: string) => {
-      doc.text(ln, centerX, y, { align: 'center' });
-      y += lineHeight;
-    });
-
-    // Espacio extra entre header y tabla
-    y += 10;
-
-    // Tabla simple de jugadores
-    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    const left = margin;
+    doc.setFontSize(10);
+    doc.text(`Equipo: ${teamName}`, margin, 27);
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')}`, pageWidth - margin, 27, { align: 'right' });
 
-    // Encabezados
-    doc.setFont('helvetica', 'bold');
-    doc.text('#', left, y);
-    doc.text('Nombre', left + 12, y);
-    doc.text('Documento', left + 90, y);
-    doc.text('Nacimiento', left + 130, y);
-    y += 7;
+    doc.setDrawColor(34, 49, 104);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 30, pageWidth - margin, 30);
+
+    const columns = [
+      { title: '#', width: 10 },
+      { title: 'Nombre', width: 68 },
+      { title: 'Documento', width: 42 },
+      { title: 'Nacimiento', width: 35 }
+    ];
+
+    let y = 36;
+    y = this.addTableHeader(doc, pageWidth, margin, y, columns);
+
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
 
-    roster.forEach((p, idx) => {
-      // calcular posición límite y salto de línea según contenido de la columna Nombre
-      const pageBottom = 280;
-      const fullName = `${(p.nombre || '').trim()} ${(p.apellido || '') .trim()}`.trim();
+    roster.forEach((player, index) => {
+      const fullName = `${(player.nombre || '').trim()} ${(player.apellido || '').trim()}`.trim() || '-';
+      const dateStr = player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString('es-CO') : '-';
 
-      const idxX = left;
-      const nameX = left + 12;
-      const docX = left + 90;
-      const birthX = left + 130;
-
-      const nameMaxWidth = docX - nameX - 4; // dejar pequeño margen
-      const lineHeight = 7; // altura por línea en pts (aprox.)
-
-      const nameLines: string[] = doc.splitTextToSize(fullName || '—', nameMaxWidth);
-      const rowHeight = Math.max(lineHeight, nameLines.length * lineHeight);
+      const nameLines = doc.splitTextToSize(fullName, columns[1].width - 2);
+      const rowHeight = Math.max(6, nameLines.length * 4.5);
+      const pageBottom = pageHeight - 18;
 
       if (y + rowHeight > pageBottom) {
         doc.addPage();
         y = 20;
+        y = this.addTableHeader(doc, pageWidth, margin, y, columns);
       }
 
-      const dateStr = p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString('es-CO') : '';
+      if (index % 2 === 0) {
+        doc.setFillColor(244, 248, 255);
+        doc.rect(margin, y - 4, tableWidth, rowHeight + 3, 'F');
+      }
 
-      doc.text(String(idx + 1), idxX, y);
-      doc.text(nameLines, nameX, y);
-      doc.text(String(p.documento || ''), docX, y);
-      doc.text(dateStr, birthX, y);
+      doc.setTextColor(0);
+      doc.text(String(index + 1), margin, y);
+      doc.text(nameLines, margin + columns[0].width, y);
+      doc.text(String(player.documento || '-'), margin + columns[0].width + columns[1].width, y);
+      doc.text(dateStr, margin + columns[0].width + columns[1].width + columns[2].width, y);
 
-      y += rowHeight;
+      y += rowHeight + 3;
     });
 
+    this.addPageNumbers(doc, margin);
     return doc;
+  }
+
+  static async generateTeamPlayersPDF(
+    teamName: string,
+    roster: Jugador[],
+    escuelaId?: string
+  ): Promise<jsPDF> {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const tableWidth = pageWidth - margin * 2;
+
+    let logoUrl: string | null = null;
+    try {
+      logoUrl = await this.getEscuelaLogo(escuelaId);
+    } catch (err) {
+      console.warn('generateTeamPlayersPDF: error obteniendo logo', err);
+      logoUrl = null;
+    }
+
+    if (logoUrl) {
+      this.addLogoToPDF(doc, { url: logoUrl, position: 'watermark', opacity: 0.08 });
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(34, 49, 104);
+    doc.text('LISTADO DE JUGADORES', margin, 20);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Equipo: ${teamName}`, margin, 27);
+    doc.text(`Total: ${roster.length}`, pageWidth - margin, 27, { align: 'right' });
+
+    doc.setDrawColor(34, 49, 104);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 30, pageWidth - margin, 30);
+
+    const columns = [
+      { title: '#', width: 10 },
+      { title: 'Nombre', width: 50 },
+      { title: 'Documento', width: 24 },
+      { title: 'Nacimiento', width: 20 },
+      { title: 'Categoría', width: 24 },
+      { title: 'Escuela', width: 37 },
+      { title: 'Estado', width: 20 }
+    ];
+
+    let y = 36;
+    y = this.addTableHeader(doc, pageWidth, margin, y, columns);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+
+    roster.forEach((player, index) => {
+      const fullName = `${(player.nombre || '').trim()} ${(player.apellido || '').trim()}`.trim() || '-';
+      const dateStr = player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString('es-CO') : '-';
+      const categoryName = (player as any).categoria?.nombre || (player as any).categoria_id || '-';
+      const schoolName = (player as any).escuela?.nombre || (player as any).escuela_id || '-';
+      const status = player.activo ? 'Activo' : 'Registrado';
+
+      const nameLines = doc.splitTextToSize(fullName, columns[1].width - 2);
+      const schoolLines = doc.splitTextToSize(schoolName, columns[5].width - 2);
+      const linesCount = Math.max(nameLines.length, schoolLines.length, 1);
+      const rowHeight = Math.max(6, linesCount * 4.5);
+      const pageBottom = pageHeight - 18;
+
+      if (y + rowHeight > pageBottom) {
+        doc.addPage();
+        y = 20;
+        y = this.addTableHeader(doc, pageWidth, margin, y, columns);
+      }
+
+      if (index % 2 === 0) {
+        doc.setFillColor(245, 247, 252);
+        doc.rect(margin, y - 4, tableWidth, rowHeight + 3, 'F');
+      }
+
+      doc.setTextColor(0);
+      let x = margin;
+      doc.text(String(index + 1), x, y);
+      x += columns[0].width;
+      doc.text(nameLines, x, y);
+      x += columns[1].width;
+      doc.text(String((player.documento || '-') as string), x, y);
+      x += columns[2].width;
+      doc.text(dateStr, x, y);
+      x += columns[3].width;
+      doc.text(categoryName, x, y);
+      x += columns[4].width;
+      doc.text(schoolLines, x, y);
+      x += columns[5].width;
+      doc.text(status, x, y);
+
+      y += rowHeight + 3;
+    });
+
+    this.addPageNumbers(doc, margin);
+    return doc;
+  }
+
+  private static addTableHeader(
+    doc: jsPDF,
+    pageWidth: number,
+    margin: number,
+    y: number,
+    columns: { title: string; width: number }[]
+  ): number {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(34, 49, 104);
+
+    let x = margin;
+    columns.forEach(column => {
+      doc.text(column.title, x, y);
+      x += column.width;
+    });
+
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y + 2, pageWidth - margin, y + 2);
+    return y + 8;
+  }
+
+  private static addPageNumbers(doc: jsPDF, margin: number): void {
+    const pageCount = doc.getNumberOfPages();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    for (let page = 1; page <= pageCount; page += 1) {
+      doc.setPage(page);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120);
+      doc.text(`Página ${page} / ${pageCount}`,
+        pageWidth - margin,
+        pageHeight - 10,
+        { align: 'right' }
+      );
+    }
   }
 
   /**

@@ -321,6 +321,87 @@ export type Database = {
           },
         ]
       }
+      equipos: {
+        Row: {
+          created_at: string | null
+          id: string
+          nombre: string
+          categoria_id: string | null
+          escuela_id: string | null
+          estado: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nombre: string
+          categoria_id?: string | null
+          escuela_id?: string | null
+          estado?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nombre?: string
+          categoria_id?: string | null
+          escuela_id?: string | null
+          estado?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipos_escuela_id_fkey"
+            columns: ["escuela_id"]
+            isOneToOne: false
+            referencedRelation: "escuelas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipo_jugadores: {
+        Row: {
+          created_at: string | null
+          equipo_id: string
+          id: string
+          jugador_id: string
+          estado: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          equipo_id: string
+          id?: string
+          jugador_id: string
+          estado?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          equipo_id?: string
+          id?: string
+          jugador_id?: string
+          estado?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipo_jugadores_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipo_jugadores_jugador_id_fkey"
+            columns: ["jugador_id"]
+            isOneToOne: false
+            referencedRelation: "jugadores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

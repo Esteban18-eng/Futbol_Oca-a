@@ -62,11 +62,9 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
     return true
   })
 
-  const playersByCategory = selectedTeam
-    ? filteredPlayers
-    : teamCategoryId
-      ? filteredPlayers
-      : filteredPlayers
+  const assignedPlayers = players.filter((player) => selectedPlayerIds.includes(player.id))
+
+  const playersByCategory = filteredPlayers
 
   return (
     <div className="modal d-block" tabIndex={-1} role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
@@ -240,6 +238,23 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                         )}
                       </tbody>
                     </table>
+                  </div>
+                  <div className="mb-3">
+                    <h6 className="card-title">Jugadores ya inscritos en este equipo</h6>
+                    {assignedPlayers.length > 0 ? (
+                      <ul className="list-group list-group-flush">
+                        {assignedPlayers.map((player) => (
+                          <li key={player.id} className="list-group-item py-2">
+                            <strong>{player.nombre} {player.apellido}</strong>
+                            <div className="small text-muted">
+                              {player.documento || 'Sin documento'} · {categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-muted">No hay jugadores inscritos visibles para este equipo aún.</p>
+                    )}
                   </div>
                   <button
                     className="btn btn-success"
