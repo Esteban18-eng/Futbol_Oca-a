@@ -131,6 +131,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   const [teamName, setTeamName] = useState('');
   const [teamCategoryId, setTeamCategoryId] = useState('');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [assignedPlayerIds, setAssignedPlayerIds] = useState<string[]>([]);
   const [teamFilterCategory, setTeamFilterCategory] = useState('');
   const [showTeamRegistrationModal, setShowTeamRegistrationModal] = useState(false);
   const [teamRegistrationMessage, setTeamRegistrationMessage] = useState<string | null>(null);
@@ -322,6 +323,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setTeamFilterCategory(team.categoria_id);
     setTeamRegistrationError(null);
     setTeamRegistrationMessage(`Equipo seleccionado: ${team.nombre}`);
+    setSelectedPlayerIds([]); // Clear selection when switching teams
 
     // Load currently assigned players for this team so coaches see who is already inscribed
     (async () => {
@@ -332,7 +334,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
           return;
         }
         const assigned = res.data || [];
-        setSelectedPlayerIds(assigned.map(p => p.id));
+        setAssignedPlayerIds(assigned.map(p => p.id));
       } catch (err) {
         console.error('Error cargando jugadores del equipo (fallback):', err);
       }
@@ -440,12 +442,26 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setTeamRegistrationError(null);
       setTeamRegistrationMessage('Registrando jugadores en el equipo...');
 
-      const result = await assignPlayersToEquipo(selectedTeam.id, selectedPlayerIds);
+      // Only assign players that are NOT already assigned to this team
+      const newPlayerIds = selectedPlayerIds.filter(id => !assignedPlayerIds.includes(id));
+      
+      if (newPlayerIds.length === 0) {
+        setTeamRegistrationError('Todos los jugadores seleccionados ya están asignados a este equipo');
+        setTeamRegistrationMessage(null);
+        return;
+      }
+
+      const result = await assignPlayersToEquipo(selectedTeam.id, newPlayerIds);
       if (result.error) {
         throw result.error;
       }
 
       await reloadPlayers();
+      // Reload assigned players list after successful assignment
+      const res = await getPlayersByEquipo(selectedTeam.id);
+      if (!res.error) {
+        setAssignedPlayerIds((res.data || []).map(p => p.id));
+      }
       setSelectedPlayerIds([]);
       setTeamRegistrationMessage('Jugadores inscritos con participación activa en el torneo.');
     } catch (err: any) {
@@ -453,7 +469,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setTeamRegistrationError(err.message || 'Error asignando jugadores al equipo');
       setTeamRegistrationMessage(null);
     }
-  }, [selectedTeam, selectedPlayerIds, currentUser.escuela_id, reloadPlayers]);
+  }, [selectedTeam, selectedPlayerIds, assignedPlayerIds, reloadPlayers]);
 
   const closeTeamRegistrationModal = useCallback(() => {
     setShowTeamRegistrationModal(false);
@@ -2005,6 +2021,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         teamName={teamName}
         teamCategoryId={teamCategoryId}
         selectedPlayerIds={selectedPlayerIds}
+        assignedPlayerIds={assignedPlayerIds}
         message={teamRegistrationMessage}
         error={teamRegistrationError}
         onCreateTeam={handleCreateTeam}

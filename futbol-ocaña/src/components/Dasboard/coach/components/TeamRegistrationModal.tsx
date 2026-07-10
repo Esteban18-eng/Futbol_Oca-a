@@ -12,6 +12,7 @@ interface TeamRegistrationModalProps {
   teamName: string
   teamCategoryId: string
   selectedPlayerIds: string[]
+  assignedPlayerIds?: string[]
   message?: string | null
   error?: string | null
   onCreateTeam: (nombre: string, categoriaId: string) => Promise<void>
@@ -37,6 +38,7 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
   teamName,
   teamCategoryId,
   selectedPlayerIds,
+  assignedPlayerIds = [],
   message,
   error,
   onCreateTeam,
@@ -62,7 +64,7 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
     return true
   })
 
-  const assignedPlayers = players.filter((player) => selectedPlayerIds.includes(player.id))
+  const assignedPlayers = players.filter((player) => assignedPlayerIds.includes(player.id))
 
   const playersByCategory = filteredPlayers
 
@@ -214,22 +216,28 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {playersByCategory.length > 0 ? playersByCategory.map(player => (
-                          <tr key={player.id}>
-                            <td>
-                              <input
-                                type="checkbox"
-                                checked={selectedPlayerIds.includes(player.id)}
-                                onChange={() => onPlayerToggle(player.id)}
-                              />
-                            </td>
-                            <td>{player.nombre} {player.apellido}</td>
-                            <td>{player.documento}</td>
-                            <td>{player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString() : ''}</td>
-                            <td>{categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}</td>
-                            <td>{player.activo ? 'Activo' : 'Registrado'}</td>
-                          </tr>
-                        )) : (
+                        {playersByCategory.length > 0 ? playersByCategory.map(player => {
+                          const isAlreadyAssigned = assignedPlayerIds.includes(player.id);
+                          return (
+                            <tr key={player.id} style={isAlreadyAssigned ? { backgroundColor: '#f0f0f0', opacity: 0.7 } : {}}>
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPlayerIds.includes(player.id)}
+                                  onChange={() => onPlayerToggle(player.id)}
+                                  disabled={isAlreadyAssigned}
+                                  title={isAlreadyAssigned ? 'Este jugador ya está asignado al equipo' : ''}
+                                />
+                                {isAlreadyAssigned && <span className="ms-2" title="Ya asignado">✓</span>}
+                              </td>
+                              <td>{player.nombre} {player.apellido}</td>
+                              <td>{player.documento}</td>
+                              <td>{player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                              <td>{categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}</td>
+                              <td>{player.activo ? 'Activo' : 'Registrado'}</td>
+                            </tr>
+                          );
+                        }) : (
                           <tr>
                             <td colSpan={6} className="text-center text-muted py-4">
                               {teamCategoryId || selectedTeam ? 'No existen jugadores registrados en la categoría seleccionada.' : 'Seleccione una categoría o un equipo para ver jugadores.'}
