@@ -956,40 +956,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                         </div>
                                       )}
 
-                                      {teamPlayersMap[team.id] && (teamPlayersMap[team.id] || []).length > 0 && (
+                                      {teamPlayersMap[team.id] !== undefined && (
                                         <div className="mt-3">
-                                          <table className="table table-sm">
-                                            <thead>
-                                              <tr>
-                                                <th></th>
-                                                <th>Nombre</th>
-                                                <th>Documento</th>
-                                                <th>Fecha Nac.</th>
-                                                <th>Categoría</th>
-                                                <th>Escuela</th>
-                                                <th>Estado</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {teamPlayersMap[team.id].map((p) => (
-                                                <tr key={p.id}>
-                                                  <td>
-                                                    <input
-                                                      type="checkbox"
-                                                      checked={!!teamSelectedPlayers[team.id]?.[p.id]}
-                                                      onChange={() => togglePlayerSelect(team.id, p.id)}
-                                                    />
-                                                  </td>
-                                                  <td>{p.nombre} {p.apellido}</td>
-                                                  <td>{p.documento}</td>
-                                                  <td>{p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : ''}</td>
-                                                  <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
-                                                  <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
-                                                  <td>{p.activo ? 'Activo' : 'Registrado'}</td>
+                                          {(teamPlayersMap[team.id] || []).length === 0 ? (
+                                            <p className="text-muted text-center py-2">No hay jugadores asignados a este equipo</p>
+                                          ) : (
+                                            <table className="table table-sm">
+                                              <thead>
+                                                <tr>
+                                                  <th></th>
+                                                  <th>Nombre</th>
+                                                  <th>Documento</th>
+                                                  <th>Fecha Nac.</th>
+                                                  <th>Categoría</th>
+                                                  <th>Escuela</th>
+                                                  <th>Estado</th>
                                                 </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
+                                              </thead>
+                                              <tbody>
+                                                {teamPlayersMap[team.id].map((p) => (
+                                                  <tr key={p.id}>
+                                                    <td>
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={!!teamSelectedPlayers[team.id]?.[p.id]}
+                                                        onChange={() => togglePlayerSelect(team.id, p.id)}
+                                                      />
+                                                    </td>
+                                                    <td>{p.nombre} {p.apellido}</td>
+                                                    <td>{p.documento}</td>
+                                                    <td>{p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                                                    <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
+                                                    <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
+                                                    <td>{p.activo ? 'Activo' : 'Registrado'}</td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -1029,36 +1033,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                         </div>
                                       </div>
 
-                                      {teamPlayersMap[team.id] && (teamPlayersMap[team.id] || []).length > 0 && (
+                                      {teamPlayersMap[team.id] !== undefined && (
                                         <div className="mt-3">
-                                          <table className="table table-sm">
-                                            <thead>
-                                              <tr>
-                                                <th></th>
-                                                <th>Nombre</th>
-                                                <th>Documento</th>
-                                                <th>Fecha Nac.</th>
-                                                <th>Categoría</th>
-                                                <th>Escuela</th>
-                                                <th>Estado</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {teamPlayersMap[team.id].map(p => (
-                                                <tr key={p.id}>
-                                                  <td>
-                                                    <input type="checkbox" checked={!!teamSelectedPlayers[team.id]?.[p.id]} onChange={() => togglePlayerSelect(team.id, p.id)} />
-                                                  </td>
-                                                  <td>{p.nombre} {p.apellido}</td>
-                                                  <td>{p.documento}</td>
-                                                  <td>{p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : ''}</td>
-                                                  <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
-                                                  <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
-                                                  <td>{p.activo ? 'Activo' : 'Registrado'}</td>
+                                          {(teamPlayersMap[team.id] || []).length === 0 ? (
+                                            <p className="text-muted text-center py-2">No hay jugadores asignados a este equipo</p>
+                                          ) : (
+                                            <table className="table table-sm">
+                                              <thead>
+                                                <tr>
+                                                  <th></th>
+                                                  <th>Nombre</th>
+                                                  <th>Documento</th>
+                                                  <th>Fecha Nac.</th>
+                                                  <th>Categoría</th>
+                                                  <th>Escuela</th>
+                                                  <th>Estado</th>
                                                 </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
+                                              </thead>
+                                              <tbody>
+                                                {teamPlayersMap[team.id].map(p => (
+                                                  <tr key={p.id}>
+                                                    <td>
+                                                      <input type="checkbox" checked={!!teamSelectedPlayers[team.id]?.[p.id]} onChange={() => togglePlayerSelect(team.id, p.id)} />
+                                                    </td>
+                                                    <td>{p.nombre} {p.apellido}</td>
+                                                    <td>{p.documento}</td>
+                                                    <td>{p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                                                    <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
+                                                    <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
+                                                    <td>{p.activo ? 'Activo' : 'Registrado'}</td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          )}
                                         </div>
                                       )}
                                     </div>
