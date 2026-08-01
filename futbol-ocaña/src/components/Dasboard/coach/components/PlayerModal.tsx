@@ -1,5 +1,6 @@
 // src/components/coach/components/PlayerModal.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { formatDateLocal, calculateAgeFromDateString } from '../../../../utils/dateUtils';
 import { PlayerModalProps } from '../types/coachTypes';
 import { 
     getGoogleDriveImageUrls, 
@@ -306,21 +307,9 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         perfMonitor.end('playerModalSave');
     }, [prepareSaveData, onSave]);
 
-    const calculateAge = useCallback((birthDate: string) => {
-        const today = new Date();
-        const birth = new Date(birthDate);
-        let age = today.getFullYear() - birth.getFullYear();
-        const monthDiff = today.getMonth() - birth.getMonth();
+    const calculateAge = useCallback((birthDate: string) => calculateAgeFromDateString(birthDate), []);
 
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-            age--;
-        }
-        return age;
-    }, []);
-
-    const formatDate = useCallback((dateString: string) => {
-        return new Date(dateString).toLocaleDateString('es-CO');
-    }, []);
+    const formatDate = useCallback((dateString: string) => formatDateLocal(dateString, 'es-CO'), []);
 
     const handlePaisChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { value } = e.target;

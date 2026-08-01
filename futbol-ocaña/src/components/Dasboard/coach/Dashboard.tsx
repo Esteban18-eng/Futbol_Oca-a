@@ -53,28 +53,13 @@ interface DashboardProps {
 }
 
 // Funciones de utilidad fuera del componente para evitar recreación
-const calculateAge = (birthDate: string): number => {
-  const today = new Date();
-  const birth = new Date(birthDate);
-  let age = today.getFullYear() - birth.getFullYear();
-  const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-    age--;
-  }
-  return age;
-};
+import { formatDateLocal, formatDateForDocument as fmtForDoc, calculateAgeFromDateString } from '../../../utils/dateUtils';
 
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('es-CO');
-};
+const calculateAge = (birthDate: string): number => calculateAgeFromDateString(birthDate);
 
-const formatDateForDocument = (dateString: string) => {
-  const date = new Date(dateString);
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day} / ${month} / ${year}`;
-};
+const formatDate = (dateString: string): string => formatDateLocal(dateString, 'es-CO');
+
+const formatDateForDocument = (dateString: string) => fmtForDoc(dateString);
 
 const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   // Performance checkpoint
@@ -842,6 +827,26 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       const duplicatePlayer = players.find(player => player.documento?.trim() === normalizedDocumento);
       if (duplicatePlayer) {
         setError('Ya existe un jugador con este documento');
+        return;
+      }
+
+      // Verificar en la base de datos que el documento no exista (evita duplicados externos)
+      try {
+        const dbCheck = await getJugadorByDocumento(normalizedDocumento);
+        if (dbCheck.error) {
+          console.error('Error verificando documento en servidor:', dbCheck.error);
+          setError('Error verificando documento en el servidor');
+          return;
+        }
+
+        if (dbCheck.data) {
+          const escuelaNombre = dbCheck.data.escuela?.nombre || 'otra escuela';
+          setError(`El niño ya está registrado en ${escuelaNombre}`);
+          return;
+        }
+      } catch (err) {
+        console.error('Error inesperado verificando documento:', err);
+        setError('Error verificando documento');
         return;
       }
 

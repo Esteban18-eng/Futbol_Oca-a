@@ -1,6 +1,7 @@
 // documentLogoService.ts
 import { jsPDF } from 'jspdf';
 import { getEscuelaLogoUrl, supabase, Jugador } from './supabaseClient';
+import { formatDateLocal } from '../utils/dateUtils';
 
 export interface LogoConfig {
   url: string | null;
@@ -70,7 +71,7 @@ export class DocumentLogoService {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.text(`Equipo: ${teamName}`, margin, 27);
-    doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')}`, pageWidth - margin, 27, { align: 'right' });
+    doc.text(`Fecha: ${formatDateLocal(new Date().toISOString(), 'es-CO')}`, pageWidth - margin, 27, { align: 'right' });
 
     doc.setDrawColor(34, 49, 104);
     doc.setLineWidth(0.5);
@@ -91,7 +92,7 @@ export class DocumentLogoService {
 
     roster.forEach((player, index) => {
       const fullName = `${(player.nombre || '').trim()} ${(player.apellido || '').trim()}`.trim() || '-';
-      const dateStr = player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString('es-CO') : '-';
+      const dateStr = player.fecha_nacimiento ? formatDateLocal(player.fecha_nacimiento, 'es-CO') : '-';
 
       const nameLines = doc.splitTextToSize(fullName, columns[1].width - 2);
       const rowHeight = Math.max(6, nameLines.length * 4.5);
@@ -176,7 +177,7 @@ export class DocumentLogoService {
 
     roster.forEach((player, index) => {
       const fullName = `${(player.nombre || '').trim()} ${(player.apellido || '').trim()}`.trim() || '-';
-      const dateStr = player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString('es-CO') : '-';
+      const dateStr = player.fecha_nacimiento ? formatDateLocal(player.fecha_nacimiento, 'es-CO') : '-';
       const categoryName = (player as any).categoria?.nombre || (player as any).categoria_id || '-';
       const schoolName = (player as any).escuela?.nombre || (player as any).escuela_id || '-';
       const status = player.activo ? 'Activo' : 'Registrado';

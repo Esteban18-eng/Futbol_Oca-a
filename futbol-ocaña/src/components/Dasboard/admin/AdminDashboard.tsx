@@ -28,6 +28,7 @@ import AdminSignatureModal from './AdminSignatureModal';
 import ProfileModal from '../coach/components/ProfileModal';
 import DocumentViewer from '../../shared/components/DocumentViewer';
 import DocumentActionsModal from './DocumentActionsModal';
+import { formatDateLocal } from '../../../utils/dateUtils';
 import SyncLogosButton from './SyncLogosButton'; // AGREGAR ESTA IMPORTACIÓN
 
 interface AdminDashboardProps {
@@ -240,7 +241,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
     const rows = filtered.map(p => ({
       Nombre: `${p.nombre} ${p.apellido}`,
       Documento: p.documento || '',
-      FechaNacimiento: p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : '',
+      FechaNacimiento: p.fecha_nacimiento ? formatDateLocal(p.fecha_nacimiento, 'es-CO') : '',
       Categoria: categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || '',
       Escuela: escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || '',
       Estado: p.activo ? 'Activo' : 'Registrado'
@@ -985,7 +986,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                                     </td>
                                                     <td>{p.nombre} {p.apellido}</td>
                                                     <td>{p.documento}</td>
-                                                    <td>{p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                                                    <td>{p.fecha_nacimiento ? formatDateLocal(p.fecha_nacimiento, 'es-CO') : ''}</td>
                                                     <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
                                                     <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
                                                     <td>{p.activo ? 'Activo' : 'Registrado'}</td>
@@ -1058,7 +1059,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                                     </td>
                                                     <td>{p.nombre} {p.apellido}</td>
                                                     <td>{p.documento}</td>
-                                                    <td>{p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                                                    <td>{p.fecha_nacimiento ? formatDateLocal(p.fecha_nacimiento, 'es-CO') : ''}</td>
                                                     <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
                                                     <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
                                                     <td>{p.activo ? 'Activo' : 'Registrado'}</td>

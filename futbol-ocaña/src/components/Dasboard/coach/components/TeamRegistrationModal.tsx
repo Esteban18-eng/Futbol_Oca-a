@@ -1,4 +1,5 @@
 import React from 'react'
+import { formatDateLocal } from '../../../../utils/dateUtils'
 import { Categoria, Jugador } from '../../../../services/supabaseClient'
 import { EquipoRegistro } from '../../../../services/teamRegistrationService'
 
@@ -232,7 +233,7 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                               </td>
                               <td>{player.nombre} {player.apellido}</td>
                               <td>{player.documento}</td>
-                              <td>{player.fecha_nacimiento ? new Date(player.fecha_nacimiento).toLocaleDateString() : ''}</td>
+                              <td>{player.fecha_nacimiento ? formatDateLocal(player.fecha_nacimiento, 'es-CO') : ''}</td>
                               <td>{categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}</td>
                               <td>{player.activo ? 'Activo' : 'Registrado'}</td>
                             </tr>

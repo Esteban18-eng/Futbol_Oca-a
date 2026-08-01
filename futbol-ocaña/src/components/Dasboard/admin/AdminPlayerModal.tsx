@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateLocal, calculateAgeFromDateString } from '../../../utils/dateUtils';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { Jugador, Categoria, Escuela, getAdminSignature, getUserProfile, supabase } from '../../../services/supabaseClient';
 import { DocumentLogoService } from '../../../services/documentLogoService';
@@ -57,21 +58,9 @@ const AdminPlayerModal: React.FC<AdminPlayerModalProps> = ({
     }
   }, [selectedEscuela]);
 
-  const calculateAge = (birthDate: string) => {
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
+  const calculateAge = (birthDate: string) => calculateAgeFromDateString(birthDate);
 
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-CO');
-  };
+  const formatDate = (dateString: string) => formatDateLocal(dateString, 'es-CO');
 
   const getCategoriaName = () => {
     return categorias.find(cat => cat.id === player.categoria_id)?.nombre || 'Sin categoría';

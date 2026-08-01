@@ -30,7 +30,7 @@ export const excelImportService = {
       try {
         // Filtrar solo los campos básicos del jugador
         const cleanPlayerData = {
-          documento: playerData.documento,
+          documento: playerData.documento?.toString().trim(),
           nombre: playerData.nombre,
           apellido: playerData.apellido,
           fecha_nacimiento: playerData.fecha_nacimiento,
@@ -74,10 +74,12 @@ export const excelImportService = {
         }
 
         // Verificar si el jugador ya existe
+        const normalizedDocumento = (cleanPlayerData.documento || '').toString().trim();
+
         const { data: existingPlayer, error: checkError } = await supabase
           .from('jugadores')
           .select('id, nombre, apellido')
-          .eq('documento', cleanPlayerData.documento)
+          .eq('documento', normalizedDocumento)
           .single();
 
         if (checkError && checkError.code !== 'PGRST116') {
@@ -86,12 +88,12 @@ export const excelImportService = {
         }
 
         if (existingPlayer) {
-          throw new Error(`Jugador con documento ${cleanPlayerData.documento} ya existe: ${existingPlayer.nombre} ${existingPlayer.apellido}`);
+          throw new Error(`Jugador con documento ${normalizedDocumento} ya existe: ${existingPlayer.nombre} ${existingPlayer.apellido}`);
         }
 
         // Preparar datos para inserción (SIN URLs)
         const playerToInsert = {
-          documento: cleanPlayerData.documento,
+          documento: normalizedDocumento,
           nombre: cleanPlayerData.nombre,
           apellido: cleanPlayerData.apellido,
           fecha_nacimiento: cleanPlayerData.fecha_nacimiento,

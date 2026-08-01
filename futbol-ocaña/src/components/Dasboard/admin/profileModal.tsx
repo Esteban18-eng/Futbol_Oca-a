@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDateLocal } from '../../../utils/dateUtils';
 import { Usuario } from '../../../services/supabaseClient';
 
 interface ProfileModalProps {
@@ -31,7 +32,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'No disponible';
-    return new Date(dateString).toLocaleDateString('es-CO');
+    return formatDateLocal(dateString, 'es-CO');
   };
 
   return (
