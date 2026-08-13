@@ -32,6 +32,7 @@ import {
   getEquiposByEscuela,
   assignPlayersToEquipo,
   getPlayersByEquipo,
+  removePlayerFromEquipo,
   updateEquipo,
   EquipoRegistro
 } from '../../../services/teamRegistrationService';
@@ -455,6 +456,34 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       setTeamRegistrationMessage(null);
     }
   }, [selectedTeam, selectedPlayerIds, assignedPlayerIds, reloadPlayers]);
+
+  const handleRemoveAssignedPlayer = useCallback(async (playerId: string) => {
+    if (!selectedTeam) return;
+
+    const confirmed = window.confirm('¿Seguro que deseas quitar este jugador del equipo?');
+    if (!confirmed) return;
+
+    try {
+      setTeamRegistrationError(null);
+      setTeamRegistrationMessage('Quitando jugador del equipo...');
+
+      const result = await removePlayerFromEquipo(selectedTeam.id, playerId);
+      if (result.error) {
+        throw result.error;
+      }
+
+      await reloadPlayers();
+      const res = await getPlayersByEquipo(selectedTeam.id);
+      if (!res.error) {
+        setAssignedPlayerIds((res.data || []).map(p => p.id));
+      }
+      setTeamRegistrationMessage('Jugador quitado del equipo correctamente.');
+    } catch (err: any) {
+      console.error('Error quitando jugador del equipo:', err);
+      setTeamRegistrationError(err.message || 'Error quitando jugador del equipo');
+      setTeamRegistrationMessage(null);
+    }
+  }, [selectedTeam, reloadPlayers]);
 
   const closeTeamRegistrationModal = useCallback(() => {
     setShowTeamRegistrationModal(false);
@@ -2034,6 +2063,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         onSelectTeam={handleSelectTeam}
         onPlayerToggle={handleTogglePlayerSelection}
         onAssignPlayers={handleAssignPlayers}
+        onRemoveAssignedPlayer={handleRemoveAssignedPlayer}
         onChangeTeamName={setTeamName}
         onChangeTeamCategory={setTeamCategoryId}
         selectedCategoryFilter={teamFilterCategory}

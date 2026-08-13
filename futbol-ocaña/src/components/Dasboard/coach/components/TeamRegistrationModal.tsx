@@ -21,6 +21,7 @@ interface TeamRegistrationModalProps {
   onSelectTeam: (team: EquipoRegistro) => void
   onPlayerToggle: (playerId: string) => void
   onAssignPlayers: () => Promise<void>
+  onRemoveAssignedPlayer?: (playerId: string) => Promise<void> | void
   onChangeTeamName: (value: string) => void
   onChangeTeamCategory: (value: string) => void
   selectedCategoryFilter: string
@@ -47,6 +48,7 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
   onSelectTeam,
   onPlayerToggle,
   onAssignPlayers,
+  onRemoveAssignedPlayer,
   onChangeTeamName,
   onChangeTeamCategory,
   selectedCategoryFilter,
@@ -253,11 +255,22 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
                     {assignedPlayers.length > 0 ? (
                       <ul className="list-group list-group-flush">
                         {assignedPlayers.map((player) => (
-                          <li key={player.id} className="list-group-item py-2">
-                            <strong>{player.nombre} {player.apellido}</strong>
-                            <div className="small text-muted">
-                              {player.documento || 'Sin documento'} · {categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}
+                          <li key={player.id} className="list-group-item py-2 d-flex justify-content-between align-items-center gap-2">
+                            <div>
+                              <strong>{player.nombre} {player.apellido}</strong>
+                              <div className="small text-muted">
+                                {player.documento || 'Sin documento'} · {categorias.find(cat => cat.id === player.categoria_id)?.nombre || player.categoria?.nombre || 'Sin categoría'}
+                              </div>
                             </div>
+                            {onRemoveAssignedPlayer && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => onRemoveAssignedPlayer(player.id)}
+                              >
+                                Quitar
+                              </button>
+                            )}
                           </li>
                         ))}
                       </ul>

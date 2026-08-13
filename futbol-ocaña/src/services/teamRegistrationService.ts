@@ -145,6 +145,46 @@ export const getPlayersByEquipo = async (equipoId: string) => {
   }
 }
 
+export const removePlayerFromEquipo = async (equipoId: string, jugadorId: string) => {
+  try {
+    const { error: deleteError } = await supabase
+      .from('equipo_jugadores' as any)
+      .delete()
+      .eq('equipo_id', equipoId)
+      .eq('jugador_id', jugadorId)
+
+    if (deleteError) {
+      return { data: null as boolean | null, error: deleteError }
+    }
+
+    const { data: remainingAssignments, error: remainingError } = await supabase
+      .from('equipo_jugadores' as any)
+      .select('id')
+      .eq('jugador_id', jugadorId)
+
+    if (remainingError) {
+      return { data: true, error: remainingError }
+    }
+
+    const stillAssigned = (remainingAssignments || []).length > 0
+    if (!stillAssigned) {
+      const { error: updateError } = await supabase
+        .from('jugadores')
+        .update({ activo: false })
+        .eq('id', jugadorId)
+
+      if (updateError) {
+        return { data: true, error: updateError }
+      }
+    }
+
+    return { data: true, error: null }
+  } catch (error) {
+    console.error('removePlayerFromEquipo error:', error)
+    return { data: null as boolean | null, error }
+  }
+}
+
 export const updateEquipo = async (
   equipoId: string,
   updates: Partial<Pick<EquipoRegistro, 'nombre' | 'categoria_id' | 'escuela_id' | 'estado'>>

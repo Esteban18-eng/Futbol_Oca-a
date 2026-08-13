@@ -13,7 +13,7 @@ import {
   getUserProfile
 } from '../../../services/supabaseClient';
 import { getAdminStats, createAdmin, createCoach, createSchool } from '../../../services/adminServices';
-import { getAllEquipos, getPlayersByEquipo, deleteEquipo, EquipoRegistro } from '../../../services/teamRegistrationService';
+import { getAllEquipos, getPlayersByEquipo, deleteEquipo, removePlayerFromEquipo, EquipoRegistro } from '../../../services/teamRegistrationService';
 import * as XLSX from 'xlsx'
 import { DocumentLogoService } from '../../../services/documentLogoService';
 import AdminHeader from './AdminHeader';
@@ -226,6 +226,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
     }
     setLoadingTeamPlayers(prev => ({ ...prev, [equipoId]: false }));
   }, []);
+
+  const handleRemovePlayerFromTeam = useCallback(async (equipoId: string, playerId: string) => {
+    const confirmed = window.confirm('¿Seguro que deseas quitar este jugador del equipo?');
+    if (!confirmed) return;
+
+    try {
+      const result = await removePlayerFromEquipo(equipoId, playerId);
+      if (result.error) {
+        throw result.error;
+      }
+
+      await handleViewPlayers(equipoId);
+    } catch (err: any) {
+      console.error('Error quitando jugador del equipo:', err);
+      setTeamLoadError(err.message || 'Error quitando jugador del equipo');
+    }
+  }, [handleViewPlayers]);
 
   const handleExportPlayers = useCallback((equipoId: string, equipoNombre: string) => {
     const players = teamPlayersMap[equipoId] || [];
@@ -990,6 +1007,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                                     <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
                                                     <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
                                                     <td>{p.activo ? 'Activo' : 'Registrado'}</td>
+                                                    <td>
+                                                      <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-outline-danger"
+                                                        onClick={() => handleRemovePlayerFromTeam(team.id, p.id)}
+                                                      >
+                                                        Quitar
+                                                      </button>
+                                                    </td>
                                                   </tr>
                                                 ))}
                                               </tbody>
@@ -1049,6 +1075,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                                   <th>Categoría</th>
                                                   <th>Escuela</th>
                                                   <th>Estado</th>
+                                                  <th>Acción</th>
                                                 </tr>
                                               </thead>
                                               <tbody>
@@ -1063,6 +1090,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, currentUser }
                                                     <td>{categorias.find(c => c.id === p.categoria_id)?.nombre || p.categoria?.nombre || ''}</td>
                                                     <td>{escuelas.find(s => s.id === p.escuela_id)?.nombre || p.escuela?.nombre || ''}</td>
                                                     <td>{p.activo ? 'Activo' : 'Registrado'}</td>
+                                                    <td>
+                                                      <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-outline-danger"
+                                                        onClick={() => handleRemovePlayerFromTeam(team.id, p.id)}
+                                                      >
+                                                        Quitar
+                                                      </button>
+                                                    </td>
                                                   </tr>
                                                 ))}
                                               </tbody>
