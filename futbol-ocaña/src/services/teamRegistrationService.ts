@@ -157,27 +157,6 @@ export const removePlayerFromEquipo = async (equipoId: string, jugadorId: string
       return { data: null as boolean | null, error: deleteError }
     }
 
-    const { data: remainingAssignments, error: remainingError } = await supabase
-      .from('equipo_jugadores' as any)
-      .select('id')
-      .eq('jugador_id', jugadorId)
-
-    if (remainingError) {
-      return { data: true, error: remainingError }
-    }
-
-    const stillAssigned = (remainingAssignments || []).length > 0
-    if (!stillAssigned) {
-      const { error: updateError } = await supabase
-        .from('jugadores')
-        .update({ activo: false })
-        .eq('id', jugadorId)
-
-      if (updateError) {
-        return { data: true, error: updateError }
-      }
-    }
-
     return { data: true, error: null }
   } catch (error) {
     console.error('removePlayerFromEquipo error:', error)
