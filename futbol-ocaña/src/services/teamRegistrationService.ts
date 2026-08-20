@@ -145,6 +145,40 @@ export const getPlayersByEquipo = async (equipoId: string) => {
   }
 }
 
+export const getAssignedPlayerIdsByCategoria = async (categoriaId: string) => {
+  try {
+    const { data: equipos, error: equiposError } = await supabase
+      .from('equipos' as any)
+      .select('id')
+      .eq('categoria_id', categoriaId)
+
+    if (equiposError) {
+      return { data: null as string[] | null, error: equiposError }
+    }
+
+    const equipoIds = ((equipos || []) as unknown as Array<{ id: string }>).map(equipo => equipo.id)
+    if (!equipoIds.length) return { data: [] as string[], error: null }
+
+    const { data: asignaciones, error: asignacionesError } = await supabase
+      .from('equipo_jugadores' as any)
+      .select('jugador_id')
+      .in('equipo_id', equipoIds)
+
+    if (asignacionesError) {
+      return { data: null as string[] | null, error: asignacionesError }
+    }
+
+    const jugadorIds = Array.from(new Set(
+      ((asignaciones || []) as unknown as Array<{ jugador_id: string }>).map(asignacion => asignacion.jugador_id)
+    ))
+
+    return { data: jugadorIds, error: null }
+  } catch (error) {
+    console.error('getAssignedPlayerIdsByCategoria error:', error)
+    return { data: null as string[] | null, error }
+  }
+}
+
 export const removePlayerFromEquipo = async (equipoId: string, jugadorId: string) => {
   try {
     const { error: deleteError } = await supabase

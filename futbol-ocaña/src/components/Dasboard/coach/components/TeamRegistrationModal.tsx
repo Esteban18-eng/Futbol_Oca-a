@@ -14,6 +14,7 @@ interface TeamRegistrationModalProps {
   teamCategoryId: string
   selectedPlayerIds: string[]
   assignedPlayerIds?: string[]
+  categoryAssignedPlayerIds?: string[]
   message?: string | null
   error?: string | null
   onCreateTeam: (nombre: string, categoriaId: string) => Promise<void>
@@ -41,6 +42,7 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
   teamCategoryId,
   selectedPlayerIds,
   assignedPlayerIds = [],
+  categoryAssignedPlayerIds = [],
   message,
   error,
   onCreateTeam,
@@ -62,9 +64,9 @@ const TeamRegistrationModal: React.FC<TeamRegistrationModalProps> = ({
   const filteredPlayers = players.filter((player) => {
     const activeCategory = selectedCategoryFilter || teamCategoryId
     if (activeCategory) {
-      return player.categoria_id === activeCategory
+      return player.categoria_id === activeCategory && !categoryAssignedPlayerIds.includes(player.id)
     }
-    return true
+    return !categoryAssignedPlayerIds.includes(player.id)
   })
 
   const assignedPlayers = players.filter((player) => assignedPlayerIds.includes(player.id))

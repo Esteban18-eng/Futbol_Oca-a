@@ -32,6 +32,7 @@ import {
   getEquiposByEscuela,
   assignPlayersToEquipo,
   getPlayersByEquipo,
+  getAssignedPlayerIdsByCategoria,
   removePlayerFromEquipo,
   updateEquipo,
   EquipoRegistro
@@ -118,6 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
   const [teamCategoryId, setTeamCategoryId] = useState('');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [assignedPlayerIds, setAssignedPlayerIds] = useState<string[]>([]);
+  const [categoryAssignedPlayerIds, setCategoryAssignedPlayerIds] = useState<string[]>([]);
   const [teamFilterCategory, setTeamFilterCategory] = useState('');
   const [showTeamRegistrationModal, setShowTeamRegistrationModal] = useState(false);
   const [teamRegistrationMessage, setTeamRegistrationMessage] = useState<string | null>(null);
@@ -293,6 +295,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         setTeamName('');
         setTeamCategoryId(categoriaId);
         setSelectedPlayerIds([]);
+        const categoryRes = await getAssignedPlayerIdsByCategoria(categoriaId);
+        if (!categoryRes.error) {
+          setCategoryAssignedPlayerIds(categoryRes.data || []);
+        }
         setTeamRegistrationMessage('Equipo inscrito correctamente. Ahora seleccione jugadores para asignarlo.');
       }
     } catch (err: any) {
@@ -321,6 +327,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         }
         const assigned = res.data || [];
         setAssignedPlayerIds(assigned.map(p => p.id));
+
+        const categoryRes = await getAssignedPlayerIdsByCategoria(team.categoria_id);
+        if (categoryRes.error) {
+          console.error('Error cargando jugadores inscritos en la categoría:', categoryRes.error);
+          return;
+        }
+        setCategoryAssignedPlayerIds(categoryRes.data || []);
       } catch (err) {
         console.error('Error cargando jugadores del equipo (fallback):', err);
       }
@@ -413,6 +426,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     }
   }, []);
 
+  const handleCategoryFilterChange = useCallback(async (categoryId: string) => {
+    setTeamFilterCategory(categoryId);
+    const activeCategory = categoryId || selectedTeam?.categoria_id;
+    if (!activeCategory) {
+      setCategoryAssignedPlayerIds([]);
+      return;
+    }
+
+    const result = await getAssignedPlayerIdsByCategoria(activeCategory);
+    if (result.error) {
+      console.error('Error cargando jugadores inscritos en la categoría:', result.error);
+      return;
+    }
+    setCategoryAssignedPlayerIds(result.data || []);
+  }, [selectedTeam]);
+
   const handleAssignPlayers = useCallback(async () => {
     if (!selectedTeam) {
       setTeamRegistrationError('Seleccione un equipo para asignar jugadores');
@@ -448,6 +477,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       if (!res.error) {
         setAssignedPlayerIds((res.data || []).map(p => p.id));
       }
+      const categoryRes = await getAssignedPlayerIdsByCategoria(selectedTeam.categoria_id);
+      if (!categoryRes.error) {
+        setCategoryAssignedPlayerIds(categoryRes.data || []);
+      }
       setSelectedPlayerIds([]);
       setTeamRegistrationMessage('Jugadores inscritos con participación activa en el torneo.');
     } catch (err: any) {
@@ -477,6 +510,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
       if (!res.error) {
         setAssignedPlayerIds((res.data || []).map(p => p.id));
       }
+      const categoryRes = await getAssignedPlayerIdsByCategoria(selectedTeam.categoria_id);
+      if (!categoryRes.error) {
+        setCategoryAssignedPlayerIds(categoryRes.data || []);
+      }
       setTeamRegistrationMessage('Jugador quitado del equipo correctamente.');
     } catch (err: any) {
       console.error('Error quitando jugador del equipo:', err);
@@ -491,6 +528,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
     setTeamRegistrationMessage(null);
     setSelectedTeam(null);
     setSelectedPlayerIds([]);
+    setAssignedPlayerIds([]);
+    setCategoryAssignedPlayerIds([]);
     setTeamFilterCategory('');
   }, []);
 
@@ -2056,6 +2095,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         teamCategoryId={teamCategoryId}
         selectedPlayerIds={selectedPlayerIds}
         assignedPlayerIds={assignedPlayerIds}
+        categoryAssignedPlayerIds={categoryAssignedPlayerIds}
         message={teamRegistrationMessage}
         error={teamRegistrationError}
         onCreateTeam={handleCreateTeam}
@@ -2067,7 +2107,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, currentUser }) => {
         onChangeTeamName={setTeamName}
         onChangeTeamCategory={setTeamCategoryId}
         selectedCategoryFilter={teamFilterCategory}
-        onChangeCategoryFilter={setTeamFilterCategory}
+        onChangeCategoryFilter={handleCategoryFilterChange}
         onToggleSelectAll={handleToggleSelectAll}
         onExportTeamPdf={handleExportTeamPdf}
       />
